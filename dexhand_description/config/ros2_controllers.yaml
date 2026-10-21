@@ -1,0 +1,27 @@
+# This config file is used by ros2_control
+/**:  # 使用通配符允许任何命名空间
+  controller_manager:
+    ros__parameters:
+      update_rate: 10  # Hz
+
+      # registered controllers which will be used in CM's service /controller_manager/list_controllers
+      joint_state_broadcaster:
+        type: joint_state_broadcaster/JointStateBroadcaster
+        publish_rate: 10 # HZ
+
+      dexhand_controller:
+        type: dexhand_controller/DexhandController
+
+      dexhand_joint_controller:
+        type: dexhand_joint_controller/DexhandJointController
+
+      dexhand_joint_trajectory_controller:
+        type: joint_trajectory_controller/JointTrajectoryController
+
+      dexhand_position_controller:
+        type: position_controllers/JointGroupPositionController
+
+      left_dexhand_position_controller:
+        type: position_controllers/JointGroupPositionController
+      right_dexhand_position_controller:
+        type: position_controllers/JointGroupPositionController

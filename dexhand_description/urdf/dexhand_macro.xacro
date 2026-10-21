@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <!-- dexhand_macro = forearm + hand -->
+    <!-- use_left_hand: select hand side -->
+    <!-- if use more than one dexhand, use prefix. such as "lh_" or "rh_" -->
+    <xacro:macro name="dexhand_macro" params="use_left_hand prefix:='' parent_link joint_type *origin">
+        <!-- Constants for robot description -->
+        <xacro:property name="joint_pi2" value="1.5708"/>
+        <xacro:property name="joint_pi2_" value="-1.5708"/>
+        <xacro:property name="joint_vel" value="2.0"/>
+        <xacro:property name="joint_acc" value="2.0"/>
+        <xacro:property name="joint_effort" value="0.1"/>
+        <!-- forearm -->
+        <!-- xacro:include filename="$(find dexhand_description)/urdf/forearm_macro_for_mujoco.xacro"/-->
+        <xacro:include filename="$(find dexhand_description)/urdf/forearm_macro.xacro"/>
+        <xacro:forearm_macro use_left_hand="${use_left_hand}" prefix="${prefix}" parent_link="${parent_link}" joint_type="${joint_type}">
+            <xacro:insert_block name="origin"/>
+        </xacro:forearm_macro>
+        <!-- left hand -->
+        <xacro:if value="${use_left_hand}">
+            <xacro:include filename="$(find dexhand_description)/urdf/left_hand_macro.xacro"/>
+            <xacro:left_hand_macro prefix="${prefix}" parent_link="${prefix}pmbase" joint_type="fixed">
+                <origin xyz="-0.0138 0 0.01485" rpy="0 0 -1.5708" />
+            </xacro:left_hand_macro>
+        </xacro:if>
+        <!-- right hand -->
+        <xacro:unless value="${use_left_hand}">
+            <xacro:include filename="$(find dexhand_description)/urdf/right_hand_macro.xacro"/>
+            <xacro:right_hand_macro prefix="${prefix}" parent_link="${prefix}pmbase" joint_type="fixed">
+                <origin xyz="-0.011315 0 0.01845" rpy="0 0 -1.5708" />
+            </xacro:right_hand_macro>
+        </xacro:unless>
+    </xacro:macro>
+
+</robot>

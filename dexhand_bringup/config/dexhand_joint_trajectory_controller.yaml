@@ -1,0 +1,30 @@
+# ros parameters of joint_trajectory_controller for botyard dexhand
+/**:  # 使用通配符允许任何命名空间
+  dexhand_joint_trajectory_controller:
+    ros__parameters:
+      joints:
+        - FAJ3
+        - FAJ1
+        - THJ4
+        - THJ3
+        - THJ2
+        - THJ1
+        - FFJ4
+        - FFJ3
+        - FFJ2
+        - MFJ4
+        - MFJ3
+        - MFJ2
+        - RFJ4
+        - RFJ3
+        - RFJ2
+        - LFJ4
+        - LFJ3
+        - LFJ2
+      command_interfaces:
+        - position
+        - velocity
+      state_interfaces:
+        - position
+        - velocity
+      allow_nonzero_velocity_at_trajectory_end: true

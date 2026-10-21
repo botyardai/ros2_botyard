@@ -1,0 +1,16 @@
+dexhand_controller:
+  joints: {
+    type: string_array,
+    default_value: [],
+    description: "Names of the joints to control",
+  }
+  interface_names: {
+    type: string_array,
+    default_value: [],
+    description: "Names of the interfaces to each joint",
+  }
+  tactiles: {
+    type: string_array,
+    default_value: [],
+    description: "Names of the tactile sensors to command",
+  }

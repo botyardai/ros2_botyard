@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="two_dexhand">
+    <!-- 定义全局参数 -->
+    <xacro:arg name="use_ros2_control" default="false" />
+    <xacro:arg name="use_gazebo" default="false" />
+    <xacro:arg name="use_mock_left_dexhand" default="true" />
+    <xacro:arg name="use_mock_right_dexhand" default="true" />
+
+    <xacro:arg name="lh_prefix" default="lh_"/>
+    <xacro:arg name="rh_prefix" default="rh_"/>
+    <xacro:arg name="lh_port_name" default="/dev/ttyACM0"/>
+    <xacro:arg name="rh_port_name" default="/dev/ttyACM1"/>
+
+<!-- construct pure URDF start -->
+    <xacro:include filename="$(find dexhand_description)/urdf/dexhand_single_macro.xacro"/>
+    <!-- create link fixed to the "world" -->
+    <link name="world"/>
+    <!-- left dexhand -->
+    <xacro:dexhand_single_macro use_left_hand="true"
+                                use_ros2_control="$(arg use_ros2_control)"
+                                use_gazebo="$(arg use_gazebo)"
+                                use_mock_dexhand="$(arg use_mock_left_dexhand)"
+                                prefix="$(arg lh_prefix)"
+                                port_name="$(arg lh_port_name)"
+                                parent_link="world"
+                                joint_type="fixed">
+        <origin xyz="0.5 0 0" rpy="0 0 0" />
+    </xacro:dexhand_single_macro>
+    <!-- right dexhand -->
+    <xacro:dexhand_single_macro use_left_hand="false"
+                                use_ros2_control="$(arg use_ros2_control)"
+                                use_gazebo="$(arg use_gazebo)"
+                                use_mock_dexhand="$(arg use_mock_right_dexhand)"
+                                prefix="$(arg rh_prefix)"
+                                port_name="$(arg rh_port_name)"
+                                parent_link="world"
+                                joint_type="fixed">
+        <origin xyz="-0.5 0 0" rpy="0 0 0" />
+    </xacro:dexhand_single_macro>
+<!-- construct pure URDF end -->
+
+</robot>

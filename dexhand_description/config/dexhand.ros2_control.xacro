@@ -1,0 +1,140 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <xacro:macro name="command_state_interface" params="name joint_limit init_position ">
+        <joint name="${name}">
+            <xacro:if value="${joint_limit['has_velocity_limits']}">
+            <command_interface name="position">
+                <xacro:if value="${'min_position' in joint_limit}">
+                    <param name="min">${joint_limit['min_position']}</param>
+                </xacro:if>
+                <xacro:if value="${'max_position' in joint_limit}">
+                    <param name="max">${joint_limit['max_position']}</param>
+                </xacro:if>
+            </command_interface>
+            <command_interface name="velocity">
+                <xacro:if value="${'min_velocity' in joint_limit}">
+                    <param name="min">${joint_limit['min_velocity']}</param>
+                </xacro:if>
+                <xacro:if value="${'max_velocity' in joint_limit}">
+                    <param name="max">${joint_limit['max_velocity']}</param>
+                </xacro:if>
+            </command_interface>
+            <command_interface name="effort"/>
+            </xacro:if>
+
+            <state_interface name="position">
+                <param name="initial_value">${init_position}</param>
+            </state_interface>
+            <state_interface name="velocity">
+                <param name="initial_value">0.0</param>
+            </state_interface>
+            <state_interface name="effort">
+                <param name="initial_value">0.0</param>
+            </state_interface>
+        </joint>
+    </xacro:macro>
+
+    <xacro:macro name="loop_command_state_interface_with_prefix" params="items:=^ prefix:=''">
+        <!-- https://robotics.stackexchange.com/questions/27111/creating-n-links-using-a-for-loop-in-xacro -->
+        <xacro:if value="${items}">
+            <!-- pop first item from list -->
+            <xacro:property name="joint" value="${items.pop(0)}"/>
+            <xacro:command_state_interface
+                name="${prefix}${joint}"
+                joint_limit="${joint_limits[joint]}"
+                init_position="${initial_positions[joint]}"
+            />
+            <!-- recursively call myself -->
+            <xacro:loop_command_state_interface_with_prefix items="${items}" prefix="${prefix}" />
+        </xacro:if>
+    </xacro:macro>
+
+    <xacro:macro name="loop_command_state_interface" params="items:=^ prefix:=^">
+        <!-- https://robotics.stackexchange.com/questions/27111/creating-n-links-using-a-for-loop-in-xacro -->
+        <!-- http://wiki.ros.org/xacro -->
+        <xacro:if value="${prefix}">
+            <!-- pop first item from list -->
+            <xacro:property name="pre" value="${prefix.pop(0)}"/>
+            <!-- list(items) let items untouched -->
+            <xacro:loop_command_state_interface_with_prefix items="${list(items)}" prefix="${pre}" />
+            <!-- recursively call myself -->
+            <xacro:loop_command_state_interface/>
+        </xacro:if>
+    </xacro:macro>
+
+    <xacro:macro name="loop_tactile_interface_with_prefix" params="items:=^ prefix:=''">
+        <xacro:if value="${items}">
+            <!-- pop first item from list -->
+            <xacro:property name="tact" value="${items.pop(0)}"/>
+            <gpio name="${prefix}${tact}">
+                <command_interface name="fz" data_type="double"/>
+                <!-- 暂时只支持控制指尖的法向力 -->
+                <state_interface name="fx" data_type="double"/>
+                <state_interface name="fy" data_type="double"/>
+                <state_interface name="fz" data_type="double"/>
+            </gpio>
+            <xacro:loop_tactile_interface_with_prefix items="${items}" prefix="${prefix}" />
+        </xacro:if>
+    </xacro:macro>
+
+    <xacro:macro name="loop_tactile_interface" params="items:=^ prefix:=^">
+        <xacro:if value="${prefix}">
+            <!-- pop first item from list -->
+            <xacro:property name="pre" value="${prefix.pop(0)}"/>
+            <!-- list(items) let items untouched -->
+            <xacro:loop_tactile_interface_with_prefix items="${list(items)}" prefix="${pre}" />
+            <!-- recursively call myself -->
+            <xacro:loop_tactile_interface/>
+        </xacro:if>
+    </xacro:macro>
+
+    <xacro:macro name="dexhand_ros2_control" params="name initial_positions_file joint_limits_file use_gazebo:=false use_mock_dexhand:=false
+                                                     port_name:=/dev/dexhand hand_id:=0 baudrate:=1000000 timeout_ms:=200 prefix:=${['']}">
+        <xacro:property name="initial_positions" value="${xacro.load_yaml(initial_positions_file)['initial_positions']}"/>
+        <xacro:property name="joint_limits" value="${xacro.load_yaml(joint_limits_file)['joint_limits']}"/>
+        <xacro:property name="joint_names" value="${xacro.load_yaml(joint_limits_file)['joint_names']}"/>
+        <!-- real <ros2_control> tag starts here -->
+        <ros2_control name="${name}" type="system">
+            <xacro:if value="${use_gazebo}">
+                <hardware>
+                    <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+                </hardware>
+            </xacro:if>
+            <xacro:if value="${use_mock_dexhand}">
+                <hardware>
+                    <plugin>mock_components/GenericSystem</plugin>
+                    <param name="calculate_dynamics">false</param>
+                    <param name="mock_sensor_commands">false</param>
+                    <!-- <param name="custom_interface_with_following_offset"></param> -->
+                    <!-- <param name="disable_commands">false</param> -->
+                    <!-- <param name="mock_gpio_commands">false</param> -->
+                    <!-- <param name="position_state_following_offset">0.0</param> -->
+                </hardware>
+            </xacro:if>
+            <xacro:unless value="${use_gazebo or use_mock_dexhand}">
+                <xacro:property name="tmp_prefix_list" value="${list(prefix)}"/>
+                <!-- 如果prefix列表里只有一个元素，那么就是需要给通用的hardware传递这个信息 -->
+                <xacro:property name="joint_prefix" value="''"/>
+                <xacro:property name="length" value="${len(prefix)}"/>
+                <xacro:if value="${length == 1}">
+                    <xacro:property name="joint_prefix" value="${prefix[0]}"/>
+                </xacro:if>
+                <hardware>
+                    <!-- 连接真机通信 -->
+                    <plugin>dexhand_hardware_interface/DexhandHardwareInterface</plugin>
+                    <param name="joint_prefix">${joint_prefix}</param>
+                    <param name="port_name">${port_name}</param>
+                    <param name="hand_id">${hand_id}</param>
+                    <param name="baudrate">${baudrate}</param>
+                    <param name="timeout_ms">${timeout_ms}</param>
+                </hardware>
+            </xacro:unless>
+            <!-- joint -->
+            <xacro:loop_command_state_interface items="${list(joint_names)}" prefix="${list(prefix)}"/>
+            <!-- tactile sensors / ForceTorchSensor -->
+            <xacro:property name="tactile_names" value="${['THT0', 'FFT0', 'MFT0', 'RFT0', 'LFT0']}"/>
+            <xacro:loop_tactile_interface items="${list(tactile_names)}" prefix="${list(prefix)}"/>
+        </ros2_control>
+    </xacro:macro>
+</robot>

@@ -1,0 +1,788 @@
+Panels:
+  - Class: rviz_common/Displays
+    Help Height: 70
+    Name: Displays
+    Property Tree Widget:
+      Expanded:
+        - /Global Options1
+        - /RobotModel1
+        - /TF1
+      Splitter Ratio: 0.5
+    Tree Height: 489
+  - Class: rviz_common/Views
+    Expanded:
+      - /Current View1
+    Name: Views
+    Splitter Ratio: 0.5
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 0.5
+      Cell Size: 1
+      Class: rviz_default_plugins/Grid
+      Color: 160; 160; 164
+      Enabled: true
+      Line Style:
+        Line Width: 0.029999999329447746
+        Value: Lines
+      Name: Grid
+      Normal Cell Count: 0
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Plane: XY
+      Plane Cell Count: 10
+      Reference Frame: <Fixed Frame>
+      Value: true
+    - Alpha: 0.800000011920929
+      Class: rviz_default_plugins/RobotModel
+      Collision Enabled: false
+      Description File: ""
+      Description Source: Topic
+      Description Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /two_dexhand/robot_description
+      Enabled: true
+      Links:
+        All Links Enabled: true
+        Expand Joint Details: false
+        Expand Link Details: false
+        Expand Tree: false
+        Link Tree Style: Links in Alphabetic Order
+        lh_central:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        lh_fabase:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_falink1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_falink2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_fallink0:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_fallink1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_fallink2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_fallink_site1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        lh_fallink_site2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        lh_farlink0:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_farlink1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_farlink2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_farlink_site1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        lh_farlink_site2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        lh_ffbase:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_ffdistal:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_ffmiddle:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_ffproximal:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_fftip:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        lh_lfbase:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_lfdistal:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_lfmiddle:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_lfproximal:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_lftip:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        lh_mfbase:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_mfdistal:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_mfmiddle:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_mfproximal:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_mftip:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        lh_palm:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_pmbase:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_rfbase:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_rfdistal:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_rfmiddle:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_rfproximal:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_rftip:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        lh_thbase:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_thdistal:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_thmiddle:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_thproximal:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        lh_thtip:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        rh_central:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        rh_fabase:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_falink1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_falink2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_fallink0:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_fallink1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_fallink2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_fallink_site1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        rh_fallink_site2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        rh_farlink0:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_farlink1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_farlink2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_farlink_site1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        rh_farlink_site2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        rh_ffbase:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_ffdistal:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_ffmiddle:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_ffproximal:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_fftip:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        rh_lfbase:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_lfdistal:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_lfmiddle:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_lfproximal:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_lftip:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        rh_mfbase:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_mfdistal:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_mfmiddle:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_mfproximal:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_mftip:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        rh_palm:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_pmbase:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_rfbase:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_rfdistal:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_rfmiddle:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_rfproximal:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_rftip:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        rh_thbase:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_thdistal:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_thmiddle:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_thproximal:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rh_thtip:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        world:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+      Mass Properties:
+        Inertia: false
+        Mass: false
+      Name: RobotModel
+      TF Prefix: two_dexhand
+      Update Interval: 0
+      Value: true
+      Visual Enabled: true
+    - Class: rviz_default_plugins/TF
+      Enabled: true
+      Filter (blacklist): ""
+      Filter (whitelist): ""
+      Frame Timeout: 15
+      Frames:
+        All Enabled: true
+        two_dexhand/lh_central:
+          Value: true
+        two_dexhand/lh_fabase:
+          Value: true
+        two_dexhand/lh_falink1:
+          Value: true
+        two_dexhand/lh_falink2:
+          Value: true
+        two_dexhand/lh_fallink0:
+          Value: true
+        two_dexhand/lh_fallink1:
+          Value: true
+        two_dexhand/lh_fallink2:
+          Value: true
+        two_dexhand/lh_fallink_site1:
+          Value: true
+        two_dexhand/lh_fallink_site2:
+          Value: true
+        two_dexhand/lh_farlink0:
+          Value: true
+        two_dexhand/lh_farlink1:
+          Value: true
+        two_dexhand/lh_farlink2:
+          Value: true
+        two_dexhand/lh_farlink_site1:
+          Value: true
+        two_dexhand/lh_farlink_site2:
+          Value: true
+        two_dexhand/lh_ffbase:
+          Value: true
+        two_dexhand/lh_ffdistal:
+          Value: true
+        two_dexhand/lh_ffmiddle:
+          Value: true
+        two_dexhand/lh_ffproximal:
+          Value: true
+        two_dexhand/lh_fftip:
+          Value: true
+        two_dexhand/lh_lfbase:
+          Value: true
+        two_dexhand/lh_lfdistal:
+          Value: true
+        two_dexhand/lh_lfmiddle:
+          Value: true
+        two_dexhand/lh_lfproximal:
+          Value: true
+        two_dexhand/lh_lftip:
+          Value: true
+        two_dexhand/lh_mfbase:
+          Value: true
+        two_dexhand/lh_mfdistal:
+          Value: true
+        two_dexhand/lh_mfmiddle:
+          Value: true
+        two_dexhand/lh_mfproximal:
+          Value: true
+        two_dexhand/lh_mftip:
+          Value: true
+        two_dexhand/lh_palm:
+          Value: true
+        two_dexhand/lh_pmbase:
+          Value: true
+        two_dexhand/lh_rfbase:
+          Value: true
+        two_dexhand/lh_rfdistal:
+          Value: true
+        two_dexhand/lh_rfmiddle:
+          Value: true
+        two_dexhand/lh_rfproximal:
+          Value: true
+        two_dexhand/lh_rftip:
+          Value: true
+        two_dexhand/lh_thbase:
+          Value: true
+        two_dexhand/lh_thdistal:
+          Value: true
+        two_dexhand/lh_thmiddle:
+          Value: true
+        two_dexhand/lh_thproximal:
+          Value: true
+        two_dexhand/lh_thtip:
+          Value: true
+        two_dexhand/rh_central:
+          Value: true
+        two_dexhand/rh_fabase:
+          Value: true
+        two_dexhand/rh_falink1:
+          Value: true
+        two_dexhand/rh_falink2:
+          Value: true
+        two_dexhand/rh_fallink0:
+          Value: true
+        two_dexhand/rh_fallink1:
+          Value: true
+        two_dexhand/rh_fallink2:
+          Value: true
+        two_dexhand/rh_fallink_site1:
+          Value: true
+        two_dexhand/rh_fallink_site2:
+          Value: true
+        two_dexhand/rh_farlink0:
+          Value: true
+        two_dexhand/rh_farlink1:
+          Value: true
+        two_dexhand/rh_farlink2:
+          Value: true
+        two_dexhand/rh_farlink_site1:
+          Value: true
+        two_dexhand/rh_farlink_site2:
+          Value: true
+        two_dexhand/rh_ffbase:
+          Value: true
+        two_dexhand/rh_ffdistal:
+          Value: true
+        two_dexhand/rh_ffmiddle:
+          Value: true
+        two_dexhand/rh_ffproximal:
+          Value: true
+        two_dexhand/rh_fftip:
+          Value: true
+        two_dexhand/rh_lfbase:
+          Value: true
+        two_dexhand/rh_lfdistal:
+          Value: true
+        two_dexhand/rh_lfmiddle:
+          Value: true
+        two_dexhand/rh_lfproximal:
+          Value: true
+        two_dexhand/rh_lftip:
+          Value: true
+        two_dexhand/rh_mfbase:
+          Value: true
+        two_dexhand/rh_mfdistal:
+          Value: true
+        two_dexhand/rh_mfmiddle:
+          Value: true
+        two_dexhand/rh_mfproximal:
+          Value: true
+        two_dexhand/rh_mftip:
+          Value: true
+        two_dexhand/rh_palm:
+          Value: true
+        two_dexhand/rh_pmbase:
+          Value: true
+        two_dexhand/rh_rfbase:
+          Value: true
+        two_dexhand/rh_rfdistal:
+          Value: true
+        two_dexhand/rh_rfmiddle:
+          Value: true
+        two_dexhand/rh_rfproximal:
+          Value: true
+        two_dexhand/rh_rftip:
+          Value: true
+        two_dexhand/rh_thbase:
+          Value: true
+        two_dexhand/rh_thdistal:
+          Value: true
+        two_dexhand/rh_thmiddle:
+          Value: true
+        two_dexhand/rh_thproximal:
+          Value: true
+        two_dexhand/rh_thtip:
+          Value: true
+        two_dexhand/world:
+          Value: true
+      Marker Scale: 0.20000000298023224
+      Name: TF
+      Show Arrows: true
+      Show Axes: true
+      Show Names: false
+      Tree:
+        two_dexhand/world:
+          two_dexhand/lh_fabase:
+            two_dexhand/lh_falink2:
+              two_dexhand/lh_falink1:
+                two_dexhand/lh_pmbase:
+                  two_dexhand/lh_fallink0:
+                    two_dexhand/lh_fallink_site2:
+                      {}
+                  two_dexhand/lh_farlink0:
+                    two_dexhand/lh_farlink_site2:
+                      {}
+                  two_dexhand/lh_palm:
+                    two_dexhand/lh_central:
+                      {}
+                    two_dexhand/lh_ffbase:
+                      two_dexhand/lh_ffproximal:
+                        two_dexhand/lh_ffmiddle:
+                          two_dexhand/lh_ffdistal:
+                            two_dexhand/lh_fftip:
+                              {}
+                    two_dexhand/lh_lfbase:
+                      two_dexhand/lh_lfproximal:
+                        two_dexhand/lh_lfmiddle:
+                          two_dexhand/lh_lfdistal:
+                            two_dexhand/lh_lftip:
+                              {}
+                    two_dexhand/lh_mfbase:
+                      two_dexhand/lh_mfproximal:
+                        two_dexhand/lh_mfmiddle:
+                          two_dexhand/lh_mfdistal:
+                            two_dexhand/lh_mftip:
+                              {}
+                    two_dexhand/lh_rfbase:
+                      two_dexhand/lh_rfproximal:
+                        two_dexhand/lh_rfmiddle:
+                          two_dexhand/lh_rfdistal:
+                            two_dexhand/lh_rftip:
+                              {}
+                    two_dexhand/lh_thbase:
+                      two_dexhand/lh_thproximal:
+                        two_dexhand/lh_thmiddle:
+                          two_dexhand/lh_thdistal:
+                            two_dexhand/lh_thtip:
+                              {}
+            two_dexhand/lh_fallink2:
+              two_dexhand/lh_fallink1:
+                two_dexhand/lh_fallink_site1:
+                  {}
+            two_dexhand/lh_farlink2:
+              two_dexhand/lh_farlink1:
+                two_dexhand/lh_farlink_site1:
+                  {}
+          two_dexhand/rh_fabase:
+            two_dexhand/rh_falink2:
+              two_dexhand/rh_falink1:
+                two_dexhand/rh_pmbase:
+                  two_dexhand/rh_fallink0:
+                    two_dexhand/rh_fallink_site2:
+                      {}
+                  two_dexhand/rh_farlink0:
+                    two_dexhand/rh_farlink_site2:
+                      {}
+                  two_dexhand/rh_palm:
+                    two_dexhand/rh_central:
+                      {}
+                    two_dexhand/rh_ffbase:
+                      two_dexhand/rh_ffproximal:
+                        two_dexhand/rh_ffmiddle:
+                          two_dexhand/rh_ffdistal:
+                            two_dexhand/rh_fftip:
+                              {}
+                    two_dexhand/rh_lfbase:
+                      two_dexhand/rh_lfproximal:
+                        two_dexhand/rh_lfmiddle:
+                          two_dexhand/rh_lfdistal:
+                            two_dexhand/rh_lftip:
+                              {}
+                    two_dexhand/rh_mfbase:
+                      two_dexhand/rh_mfproximal:
+                        two_dexhand/rh_mfmiddle:
+                          two_dexhand/rh_mfdistal:
+                            two_dexhand/rh_mftip:
+                              {}
+                    two_dexhand/rh_rfbase:
+                      two_dexhand/rh_rfproximal:
+                        two_dexhand/rh_rfmiddle:
+                          two_dexhand/rh_rfdistal:
+                            two_dexhand/rh_rftip:
+                              {}
+                    two_dexhand/rh_thbase:
+                      two_dexhand/rh_thproximal:
+                        two_dexhand/rh_thmiddle:
+                          two_dexhand/rh_thdistal:
+                            two_dexhand/rh_thtip:
+                              {}
+            two_dexhand/rh_fallink2:
+              two_dexhand/rh_fallink1:
+                two_dexhand/rh_fallink_site1:
+                  {}
+            two_dexhand/rh_farlink2:
+              two_dexhand/rh_farlink1:
+                two_dexhand/rh_farlink_site1:
+                  {}
+      Update Interval: 0
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 48; 48; 48
+    Fixed Frame: two_dexhand/world
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/MoveCamera
+  Transformation:
+    Current:
+      Class: rviz_default_plugins/TF
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 2.126765727996826
+      Enable Stereo Rendering:
+        Stereo Eye Separation: 0.05999999865889549
+        Stereo Focal Distance: 1
+        Swap Stereo Eyes: false
+        Value: false
+      Focal Point:
+        X: 0
+        Y: 0
+        Z: 0
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05000000074505806
+      Invert Z Axis: false
+      Name: Current View
+      Near Clip Distance: 0.009999999776482582
+      Pitch: 0.2850003242492676
+      Target Frame: <Fixed Frame>
+      Value: Orbit (rviz)
+      Yaw: 1.4899994134902954
+    Saved: ~
+Window Geometry:
+  Displays:
+    collapsed: false
+  Height: 1131
+  Hide Left Dock: false
+  Hide Right Dock: false
+  QMainWindow State: 000000ff00000000fd0000000100000000000001c90000040dfc0200000002fb000000100044006900730070006c006100790073010000003f0000026f000000cc00fffffffb0000000a0056006900650077007301000002b400000198000000a900ffffff0000056f0000040d00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Views:
+    collapsed: false
+  Width: 1854
+  X: 66
+  Y: 32

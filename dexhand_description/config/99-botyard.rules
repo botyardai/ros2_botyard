@@ -1,0 +1,2 @@
+KERNEL=="tty**ACM*", ATTRS{idVendor}=="1a86", MODE:="0666", SYMLINK+="dexhand"
+KERNEL=="tty**USB*", ATTRS{idVendor}=="1a86", MODE:="0666", SYMLINK+="dexhand"

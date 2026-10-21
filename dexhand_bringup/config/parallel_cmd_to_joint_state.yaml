@@ -1,0 +1,25 @@
+/**:  # 使用通配符允许任何命名空间
+  parallel_cmd_to_joint_state:
+    ros__parameters:
+      cmd_topic: /dexhand_position_controller/commands
+      joint_state_topic: /parallel/dexhand/joint_states
+      joints:
+        - FAJ3
+        - FAJ1
+        - THJ4
+        - THJ3
+        - THJ2
+        - THJ1
+        - FFJ4
+        - FFJ3
+        - FFJ2
+        - MFJ4
+        - MFJ3
+        - MFJ2
+        - RFJ4
+        - RFJ3
+        - RFJ2
+        - LFJ4
+        - LFJ3
+        - LFJ2
+        

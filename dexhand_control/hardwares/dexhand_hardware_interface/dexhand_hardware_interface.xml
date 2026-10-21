@@ -1,0 +1,9 @@
+<library path="dexhand_hardware_interface">
+  <class name="dexhand_hardware_interface/DexhandHardwareInterface"
+         type="dexhand_hardware_interface::DexhandHardwareInterface"
+         base_class_type="hardware_interface::SystemInterface">
+    <description>
+      Botyard Dexhand hardware interface for ros2_control.
+    </description>
+  </class>
+</library>

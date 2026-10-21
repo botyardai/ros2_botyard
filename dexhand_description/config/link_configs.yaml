@@ -1,0 +1,23 @@
+# link_configs.yaml allows the dynamics properties specified in the Rviz/Gazebo attribute to be overwritten or augmented as needed
+
+link_names: [
+  fabase, falink1, falink2, pmbase, palm,
+  ffbase, ffdistal, ffmiddle, ffproximal, 
+  lfbase, lfdistal, lfmiddle, lfproximal,
+  mfbase, mfdistal, mfmiddle, mfproximal, 
+  rfbase, rfdistal, rfmiddle, rfproximal, 
+  thbase, thdistal, thmiddle, thproximal, 
+]
+
+# Specific link properties can be changed with the keys [color, damping, friction]
+link_configs:
+  fabase:
+    color: "Black"
+  falink1:
+    color: "Grey"
+  falink2:
+    color: "Grey"
+  pmbase:
+    color: "Grey"
+  palm:
+    color: "Black"

@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="dexhand">
+
+    <xacro:arg name="use_left_hand" default="true" />
+    <xacro:arg name="prefix" default=""/>
+
+    <xacro:arg name="use_ros2_control" default="true" />
+    <xacro:arg name="use_gazebo" default="false" />
+    <xacro:arg name="use_mock_dexhand" default="false" />
+    <xacro:arg name="port_name" default="/dev/dexhand" />
+
+<!-- construct pure URDF start -->
+    <xacro:include filename="$(find dexhand_description)/urdf/dexhand_single_macro.xacro"/>
+    <!-- create link fixed to the "world" -->
+    <link name="world"/>
+    <!-- dexhand -->
+    <xacro:dexhand_single_macro use_left_hand="$(arg use_left_hand)"
+                                use_ros2_control="$(arg use_ros2_control)"
+                                use_gazebo="$(arg use_gazebo)"
+                                use_mock_dexhand="$(arg use_mock_dexhand)"
+                                prefix="$(arg prefix)"
+                                port_name="$(arg port_name)"
+                                parent_link="world"
+                                joint_type="fixed">
+        <origin xyz="0 0 0" rpy="0 0 0" />
+    </xacro:dexhand_single_macro>
+<!-- construct pure URDF end -->
+
+</robot>

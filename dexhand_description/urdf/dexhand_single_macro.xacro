@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <!-- 定义全局参数 -->
+    <xacro:arg name="dexhand_initial_positions_file" default="$(find dexhand_description)/config/initial_positions.yaml" />
+    <xacro:arg name="dexhand_joint_limits_file" default="$(find dexhand_description)/config/joint_limits.yaml" />
+    <xacro:arg name="dexhand_link_configs_file" default="$(find dexhand_description)/config/link_configs.yaml" />
+    <!-- Import materials used in urdf -->
+    <xacro:include filename="$(find dexhand_description)/urdf/inc/common.materials.xacro"/>
+
+    <!-- dexhand_single_macro 单只手的macro -->
+    <xacro:macro name="dexhand_single_macro" params="use_left_hand use_ros2_control:=false use_gazebo:=false use_mock_dexhand:=false prefix:='' port_name:=/dev/dexhand parent_link joint_type *origin">
+        <!-- Constants for robot description -->
+        <xacro:property name="joint_pi2" value="1.5708"/>
+        <xacro:property name="joint_pi2_" value="-1.5708"/>
+        <xacro:property name="joint_vel" value="2.0"/>
+        <xacro:property name="joint_acc" value="2.0"/>
+        <xacro:property name="joint_effort" value="0.1"/>
+
+        <!-- construct pure URDF start -->
+        <xacro:include filename="$(find dexhand_description)/urdf/dexhand_macro.xacro"/>
+        <xacro:dexhand_macro use_left_hand="${use_left_hand}" prefix="${prefix}" parent_link="${parent_link}" joint_type="${joint_type}">
+            <xacro:insert_block name="origin"/>
+        </xacro:dexhand_macro>
+        <!-- construct pure URDF end -->
+
+        <xacro:property name="prefix_list" value="${[prefix, ]}" />
+        <!-- Import ros2_control description -->
+        <xacro:if value="${use_ros2_control}">
+            <xacro:include filename="$(find dexhand_description)/config/dexhand.ros2_control.xacro"/>
+            <xacro:dexhand_ros2_control
+                name="${prefix}botyard_dexhand_hardware"
+                use_gazebo="${use_gazebo}"
+                use_mock_dexhand="${use_mock_dexhand}"
+                initial_positions_file="$(arg dexhand_initial_positions_file)"
+                joint_limits_file="$(arg dexhand_joint_limits_file)"
+                port_name="${port_name}"
+                prefix="${prefix_list}"
+            />
+        </xacro:if>
+
+        <!-- Import gazebo description -->
+        <xacro:if value="${use_gazebo}">
+            <xacro:include filename="$(find dexhand_description)/config/dexhand.gazebo.xacro"/>
+            <xacro:dexhand_gazebo_attribute
+                link_configs_file="$(arg dexhand_link_configs_file)"
+                joint_limits_file="$(arg dexhand_joint_limits_file)"
+                prefix="${prefix_list}"
+            />
+            <xacro:dexhand_gazebo_plugin
+                use_ros2_control="${use_ros2_control}"
+                joint_limits_file="$(arg dexhand_joint_limits_file)"
+                prefix="${prefix_list}"
+            />
+        </xacro:if>
+
+    </xacro:macro>
+
+</robot>

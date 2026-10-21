@@ -1,0 +1,45 @@
+# ros parameters of two_dexhand_position_controller registered in ControllerManager
+/**:  # 使用通配符允许任何命名空间
+  left_dexhand_position_controller:
+    ros__parameters:
+      joints:
+        - lh_FAJ3
+        - lh_FAJ1
+        - lh_THJ4
+        - lh_THJ3
+        - lh_THJ2
+        - lh_THJ1
+        - lh_FFJ4
+        - lh_FFJ3
+        - lh_FFJ2
+        - lh_MFJ4
+        - lh_MFJ3
+        - lh_MFJ2
+        - lh_RFJ4
+        - lh_RFJ3
+        - lh_RFJ2
+        - lh_LFJ4
+        - lh_LFJ3
+        - lh_LFJ2
+  right_dexhand_position_controller:
+    ros__parameters:
+      joints:
+        - rh_FAJ3
+        - rh_FAJ1
+        - rh_THJ4
+        - rh_THJ3
+        - rh_THJ2
+        - rh_THJ1
+        - rh_FFJ4
+        - rh_FFJ3
+        - rh_FFJ2
+        - rh_MFJ4
+        - rh_MFJ3
+        - rh_MFJ2
+        - rh_RFJ4
+        - rh_RFJ3
+        - rh_RFJ2
+        - rh_LFJ4
+        - rh_LFJ3
+        - rh_LFJ2
+        

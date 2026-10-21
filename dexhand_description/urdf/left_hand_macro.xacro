@@ -1,0 +1,1180 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="left_hand_macro" params="prefix parent_link joint_type *origin">
+    <!-- Constants for robot description -->
+    <xacro:property name="joint_zero" value="0.0"/>
+    <xacro:property name="joint_pi2" value="1.5708"/>
+    <xacro:property name="joint_pi2_" value="-1.5708"/>
+    <xacro:property name="joint_pi3" value="1.0472"/>
+    <xacro:property name="joint_pi3_" value="-1.0472"/>
+    <xacro:property name="joint_pi6" value="0.5235"/>
+    <xacro:property name="joint_pi6_" value="-0.5235"/>
+    <xacro:property name="joint_pi12" value="0.2618"/>
+    <xacro:property name="joint_pi12_" value="-0.2618"/>
+    <xacro:property name="joint_vel" value="3.14"/>
+    <xacro:property name="joint_acc" value="3.14"/>
+    <xacro:property name="joint_effort" value="10"/>
+    <!-- define a joint connect to other part of robot -->
+    <joint name="${prefix}PALM" type="${joint_type}">
+        <xacro:insert_block name="origin"/>
+        <parent link="${parent_link}"/>
+        <child link="${prefix}palm"/>
+    </joint>
+    <!-- pure URDF goes below -->
+
+
+    <!-- left_hand_macro -->
+    <link name="${prefix}palm">
+      <inertial>
+        <origin
+          xyz="0.00381465823853565 0.00109363165162189 0.0452591843950955"
+          rpy="0 0 0" />
+        <mass
+          value="0.0546673825190888" />
+        <inertia
+          ixx="2.92046836777978E-05"
+          ixy="-1.89828553872948E-07"
+          ixz="-2.22039086638817E-06"
+          iyy="7.69489929215244E-05"
+          iyz="-1.82871862235342E-07"
+          izz="5.27648510730536E-05" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/palm.STL" />
+        </geometry>
+        <!-- 使用外部定义的 material -->
+        <material name="grey"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/palm.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <link name="${prefix}thbase">
+      <inertial>
+        <origin
+          xyz="0.0152576202736816 -0.000588818460865753 -7.10700006514853E-06"
+          rpy="0 0 0" />
+        <mass
+          value="0.00757807829339509" />
+        <inertia
+          ixx="6.43368794536786E-07"
+          ixy="-7.32131496274338E-09"
+          ixz="-8.84449850325008E-11"
+          iyy="4.59557197749235E-07"
+          iyz="1.45896613070167E-10"
+          izz="4.47716083763873E-07" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/thbase.STL" />
+        </geometry>
+        <material name="light_grey"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/thbase.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}THJ4" type="revolute">
+      <origin
+        xyz="0.031004 0.0044895 0.028575"
+        rpy="-1.8172 -0.61087 1.5708" />
+      <parent
+        link="${prefix}palm" />
+      <child
+        link="${prefix}thbase" />
+      <axis
+        xyz="1 0 0" />
+      <limit
+        lower="${joint_pi3_}"
+        upper="${joint_pi3}"
+        effort="${joint_effort}"
+        acceleration="${joint_acc}"
+        velocity="${joint_vel}" />
+    </joint>
+    <link name="${prefix}thproximal">
+      <inertial>
+        <origin
+          xyz="0.000293897732332377 0.000178551652702655 0.0153773732549416"
+          rpy="0 0 0" />
+        <mass
+          value="0.00736476997904207" />
+        <inertia
+          ixx="8.75815560890687E-07"
+          ixy="-2.35344497555502E-08"
+          ixz="2.89480634990682E-08"
+          iyy="1.07199396101474E-06"
+          iyz="-1.74080548230787E-09"
+          izz="3.81923499728987E-07" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/thproximal.STL" />
+        </geometry>
+        <material name="light_grey"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/thproximal.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}THJ3" type="revolute">
+      <origin
+        xyz="0.031 0 0"
+        rpy="-1.5708 0.012123 -1.5708" />
+      <parent
+        link="${prefix}thbase" />
+      <child
+        link="${prefix}thproximal" />
+      <axis
+        xyz="-1 0 0" />
+      <limit
+        lower="${joint_pi3_}"
+        upper="${joint_pi3}"
+        effort="${joint_effort}"
+        acceleration="${joint_acc}"
+        velocity="${joint_vel}" />
+    </joint>
+    <link name="${prefix}thmiddle">
+      <inertial>
+        <origin
+          xyz="-0.000194157218493841 -0.00114770482228846 0.0156232267546311"
+          rpy="0 0 0" />
+        <mass
+          value="0.0054786230428127" />
+        <inertia
+          ixx="9.11292084761718E-07"
+          ixy="1.75775551322324E-09"
+          ixz="1.81551211355235E-08"
+          iyy="7.75768230041007E-07"
+          iyz="-1.14470519912878E-08"
+          izz="1.99457559483493E-07" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/thmiddle.STL" />
+        </geometry>
+        <material name="light_grey"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/thmiddle.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}THJ2" type="revolute">
+      <origin
+        xyz="0.00175 0.00027771 0.034999"
+        rpy="0 -0.0079348 -1.5708" />
+      <parent
+        link="${prefix}thproximal" />
+      <child
+        link="${prefix}thmiddle" />
+      <axis
+        xyz="-1 0 0" />
+      <limit
+        lower="${joint_zero}"
+        upper="${joint_pi2}"
+        effort="${joint_effort}"
+        acceleration="${joint_acc}"
+        velocity="${joint_vel}" />
+    </joint>
+    <link name="${prefix}thdistal">
+      <inertial>
+        <origin
+          xyz="-0.000161876509497262 -0.00155304585873098 0.0156024525308432"
+          rpy="0 0 0" />
+        <mass
+          value="0.00619770741855049" />
+        <inertia
+          ixx="4.35885070616187E-07"
+          ixy="3.76019125553529E-09"
+          ixz="-7.60494643427307E-09"
+          iyy="4.7946858760707E-07"
+          iyz="5.27032934417234E-08"
+          izz="1.88103386552898E-07" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/thdistal.STL" />
+        </geometry>
+        <material name="brown"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/thdistal.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}THJ1" type="revolute">
+      <origin
+        xyz="0 0.00017925 0.035"
+        rpy="-0.0051216 0 0" />
+      <parent
+        link="${prefix}thmiddle" />
+      <child
+        link="${prefix}thdistal" />
+      <axis
+        xyz="-1 0 0" />
+      <limit
+        lower="${joint_zero}"
+        upper="${joint_pi2}"
+        effort="${joint_effort}"
+        acceleration="${joint_acc}"
+        velocity="${joint_vel}" />
+    </joint>
+    <link name="${prefix}thtip" />
+    <joint name="${prefix}THJ0" type="fixed">
+      <origin
+        xyz="0 0.0067301 0.026376"
+        rpy="0 0 0" />
+      <parent
+        link="${prefix}thdistal" />
+      <child
+        link="${prefix}thtip" />
+      <axis
+        xyz="0 0 0" />
+    </joint>
+    <link name="${prefix}ffbase">
+      <inertial>
+        <origin
+          xyz="-8.3603383098426E-05 0.000663675538687541 0.00773740182628929"
+          rpy="0 0 0" />
+        <mass
+          value="0.00421553712666423" />
+        <inertia
+          ixx="1.22568279178985E-07"
+          ixy="3.06842947071439E-09"
+          ixz="1.00331193491583E-08"
+          iyy="1.94634086754992E-07"
+          iyz="-4.48427153856835E-09"
+          izz="1.99940890730501E-07" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/ffbase.STL" />
+        </geometry>
+        <material name="light_grey"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/ffbase.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}FFJ4" type="revolute">
+      <origin
+        xyz="0.034502 0 0.086"
+        rpy="0 0 1.5708" />
+      <parent
+        link="${prefix}palm" />
+      <child
+        link="${prefix}ffbase" />
+      <axis
+        xyz="1 0 0" />
+      <limit
+        lower="${joint_pi12_}"
+        upper="${joint_pi12}"
+        effort="${joint_effort}"
+        acceleration="${joint_acc}"
+        velocity="${joint_vel}" />
+    </joint>
+    <link name="${prefix}ffproximal">
+      <inertial>
+        <origin
+          xyz="-0.000569381382131681 -0.000998983809635846 0.0231808914084776"
+          rpy="0 0 0" />
+        <mass
+          value="0.00685015079995992" />
+        <inertia
+          ixx="1.57167248520879E-06"
+          ixy="-3.19902618900967E-09"
+          ixz="-1.22260923843696E-08"
+          iyy="1.40278809750252E-06"
+          iyz="-1.712741167909E-08"
+          izz="2.51702932475858E-07" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/ffproximal.STL" />
+        </geometry>
+        <material name="light_grey"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/ffproximal.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}FFJ3" type="revolute">
+      <origin
+        xyz="0.0017536 0 0.018"
+        rpy="0 0 -1.5708" />
+      <parent
+        link="${prefix}ffbase" />
+      <child
+        link="${prefix}ffproximal" />
+      <axis
+        xyz="-1 0 0" />
+      <limit
+        lower="${joint_zero}"
+        upper="${joint_pi2}"
+        effort="${joint_effort}"
+        acceleration="${joint_acc}"
+        velocity="${joint_vel}" />
+    </joint>
+    <link name="${prefix}ffmiddle">
+      <inertial>
+        <origin
+          xyz="0.000279238923460198 -0.00214645628454319 0.0120304300704089"
+          rpy="0 0 0" />
+        <mass
+          value="0.00505559008062046" />
+        <inertia
+          ixx="4.22195630858814E-07"
+          ixy="-2.1896809661709E-10"
+          ixz="-1.36743683767706E-09"
+          iyy="3.34670829822134E-07"
+          iyz="-1.35343875030485E-09"
+          izz="1.42224200974796E-07" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/ffmiddle.STL" />
+        </geometry>
+        <material name="light_grey"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/ffmiddle.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}FFJ2" type="revolute">
+      <origin
+        xyz="0 0.0005 0.045001"
+        rpy="0 0 0" />
+      <parent
+        link="${prefix}ffproximal" />
+      <child
+        link="${prefix}ffmiddle" />
+      <axis
+        xyz="-1 0 0" />
+      <limit
+        lower="${joint_zero}"
+        upper="${joint_pi2}"
+        effort="${joint_effort}"
+        acceleration="${joint_acc}"
+        velocity="${joint_vel}" />
+    </joint>
+    <link name="${prefix}ffdistal">
+      <inertial>
+        <origin
+          xyz="3.38429261959247E-05 -0.00177252050266193 0.0153053197848196"
+          rpy="0 0 0" />
+        <mass
+          value="0.0065989997199832" />
+        <inertia
+          ixx="4.53711277149757E-07"
+          ixy="-4.16950666373484E-09"
+          ixz="1.3129549183737E-08"
+          iyy="4.86659158884548E-07"
+          iyz="4.50237445121225E-08"
+          izz="1.81085329137919E-07" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/ffdistal.STL" />
+        </geometry>
+        <material name="brown"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/ffdistal.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}FFJ1" type="revolute">
+      <mimic joint="${prefix}FFJ2" multiplier="1" offset="0" />
+      <origin
+        xyz="0 0 0.025106"
+        rpy="0 0 0" />
+      <parent
+        link="${prefix}ffmiddle" />
+      <child
+        link="${prefix}ffdistal" />
+      <axis
+        xyz="-1 0 0" />
+      <limit
+        lower="${joint_zero}"
+        upper="${joint_pi2}"
+        effort="${joint_effort}"
+        acceleration="${joint_acc}"
+        velocity="${joint_vel}" />
+    </joint>
+    <link name="${prefix}fftip" />
+    <joint name="${prefix}FFJ0" type="fixed">
+      <origin
+        xyz="0 0.0034687 0.027004"
+        rpy="0 0 0" />
+      <parent
+        link="${prefix}ffdistal" />
+      <child
+        link="${prefix}fftip" />
+      <axis
+        xyz="0 0 0" />
+    </joint>
+    <link name="${prefix}mfbase">
+      <inertial>
+        <origin
+          xyz="0.00041775184449355 7.32068855240891E-05 0.00792478974437766"
+          rpy="0 0 0" />
+        <mass
+          value="0.00475656802733328" />
+        <inertia
+          ixx="1.45404416896393E-07"
+          ixy="-3.35474301657671E-09"
+          ixz="6.11463005476073E-09"
+          iyy="2.27275145332963E-07"
+          iyz="-1.68679108004358E-09"
+          izz="2.3008097614329E-07" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/mfbase.STL" />
+        </geometry>
+        <material name="light_grey"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/mfbase.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}MFJ4" type="revolute">
+      <origin
+        xyz="0.011502 0 0.094"
+        rpy="0 0 1.5708" />
+      <parent
+        link="${prefix}palm" />
+      <child
+        link="${prefix}mfbase" />
+      <axis
+        xyz="1 0 0" />
+      <limit
+        lower="${joint_pi12_}"
+        upper="${joint_pi12}"
+        effort="${joint_effort}"
+        acceleration="${joint_acc}"
+        velocity="${joint_vel}" />
+    </joint>
+    <link name="${prefix}mfproximal">
+      <inertial>
+        <origin
+          xyz="-0.00056938131649999 -0.000998983869542194 0.0231808912656664"
+          rpy="0 0 0" />
+        <mass
+          value="0.00685015085562919" />
+        <inertia
+          ixx="1.57167250726654E-06"
+          ixy="-3.19902468583274E-09"
+          ixz="-1.22260880884861E-08"
+          iyy="1.40278811937593E-06"
+          iyz="-1.71274183382708E-08"
+          izz="2.51702936763949E-07" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/mfproximal.STL" />
+        </geometry>
+        <material name="light_grey"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/mfproximal.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}MFJ3" type="revolute">
+      <origin
+        xyz="0.0017536 0 0.018"
+        rpy="0 0 -1.5708" />
+      <parent
+        link="${prefix}mfbase" />
+      <child
+        link="${prefix}mfproximal" />
+      <axis
+        xyz="-1 0 0" />
+      <limit
+        lower="${joint_zero}"
+        upper="${joint_pi2}"
+        effort="${joint_effort}"
+        acceleration="${joint_acc}"
+        velocity="${joint_vel}" />
+    </joint>
+    <link name="${prefix}mfmiddle">
+      <inertial>
+        <origin
+          xyz="0.000279248354284903 -0.0021464544236685 0.0120304334400619"
+          rpy="0 0 0" />
+        <mass
+          value="0.0050555877619517" />
+        <inertia
+          ixx="4.22195497354912E-07"
+          ixy="-2.18936660226167E-10"
+          ixz="-1.36739587628474E-09"
+          iyy="3.34670726038688E-07"
+          iyz="-1.35337578469992E-09"
+          izz="1.42224158798869E-07" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/mfmiddle.STL" />
+        </geometry>
+        <material name="light_grey"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/mfmiddle.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}MFJ2" type="revolute">
+      <origin
+        xyz="0 0.0005 0.045001"
+        rpy="0 0 0" />
+      <parent
+        link="${prefix}mfproximal" />
+      <child
+        link="${prefix}mfmiddle" />
+      <axis
+        xyz="-1 0 0" />
+      <limit
+        lower="${joint_zero}"
+        upper="${joint_pi2}"
+        effort="${joint_effort}"
+        acceleration="${joint_acc}"
+        velocity="${joint_vel}" />
+    </joint>
+    <link name="${prefix}mfdistal">
+      <inertial>
+        <origin
+          xyz="3.38428917142572E-05 -0.00177251281851511 0.0153053123782582"
+          rpy="0 0 0" />
+        <mass
+          value="0.00659899327018844" />
+        <inertia
+          ixx="4.53710636395395E-07"
+          ixy="-4.16949720371626E-09"
+          ixz="1.31295606410688E-08"
+          iyy="4.86658906272801E-07"
+          iyz="4.502365878504E-08"
+          izz="1.8108518605762E-07" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/mfdistal.STL" />
+        </geometry>
+        <material name="brown"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/mfdistal.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}MFJ1" type="revolute">
+      <mimic joint="${prefix}MFJ2" multiplier="1" offset="0" />
+      <origin
+        xyz="0 0 0.025106"
+        rpy="0 0 0" />
+      <parent
+        link="${prefix}mfmiddle" />
+      <child
+        link="${prefix}mfdistal" />
+      <axis
+        xyz="-1 0 0" />
+      <limit
+        lower="${joint_zero}"
+        upper="${joint_pi2}"
+        effort="${joint_effort}"
+        acceleration="${joint_acc}"
+        velocity="${joint_vel}" />
+    </joint>
+    <link name="${prefix}mftip" />
+    <joint name="${prefix}MFJ0" type="fixed">
+      <origin
+        xyz="0 0.0034594 0.027004"
+        rpy="0 0 0" />
+      <parent
+        link="${prefix}mfdistal" />
+      <child
+        link="${prefix}mftip" />
+      <axis
+        xyz="0 0 0" />
+    </joint>
+    <link name="${prefix}rfbase">
+      <inertial>
+        <origin
+          xyz="0.00041775204537482 7.3206897808549E-05 0.00792478925461737"
+          rpy="0 0 0" />
+        <mass
+          value="0.00475656775660177" />
+        <inertia
+          ixx="1.45404409413476E-07"
+          ixy="-3.35473835765333E-09"
+          ixz="6.11462616966393E-09"
+          iyy="2.27275143090297E-07"
+          iyz="-1.68678956025754E-09"
+          izz="2.3008097825079E-07" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/rfbase.STL" />
+        </geometry>
+        <material name="light_grey"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/rfbase.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}RFJ4" type="revolute">
+      <origin
+        xyz="-0.011498 0 0.086"
+        rpy="0 0 1.5708" />
+      <parent
+        link="${prefix}palm" />
+      <child
+        link="${prefix}rfbase" />
+      <axis
+        xyz="1 0 0" />
+      <limit
+        lower="${joint_pi12_}"
+        upper="${joint_pi12}"
+        effort="${joint_effort}"
+        acceleration="${joint_acc}"
+        velocity="${joint_vel}" />
+    </joint>
+    <link name="${prefix}rfproximal">
+      <inertial>
+        <origin
+          xyz="-0.000569381774297226 -0.000998983589716541 0.0231808919692685"
+          rpy="0 0 0" />
+        <mass
+          value="0.00685015052253353" />
+        <inertia
+          ixx="1.57167238576553E-06"
+          ixy="-3.19903538474439E-09"
+          ixz="-1.22261202469399E-08"
+          iyy="1.40278799612429E-06"
+          iyz="-1.71273840564201E-08"
+          izz="2.51702913701164E-07" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/rfproximal.STL" />
+        </geometry>
+        <material name="light_grey"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/rfproximal.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}RFJ3" type="revolute">
+      <origin
+        xyz="0.0017536 0 0.018"
+        rpy="0 0 -1.5708" />
+      <parent
+        link="${prefix}rfbase" />
+      <child
+        link="${prefix}rfproximal" />
+      <axis
+        xyz="-1 0 0" />
+      <limit
+        lower="${joint_zero}"
+        upper="${joint_pi2}"
+        effort="${joint_effort}"
+        acceleration="${joint_acc}"
+        velocity="${joint_vel}" />
+    </joint>
+    <link name="${prefix}rfmiddle">
+      <inertial>
+        <origin
+          xyz="0.000279238923460082 -0.00214645628454291 0.0120304300704079"
+          rpy="0 0 0" />
+        <mass
+          value="0.00505559008062094" />
+        <inertia
+          ixx="4.22195630858879E-07"
+          ixy="-2.18968096617541E-10"
+          ixz="-1.36743683767744E-09"
+          iyy="3.34670829822184E-07"
+          iyz="-1.35343875028101E-09"
+          izz="1.42224200974814E-07" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/rfmiddle.STL" />
+        </geometry>
+        <material name="light_grey"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/rfmiddle.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}RFJ2" type="revolute">
+      <origin
+        xyz="0 0.0005 0.045001"
+        rpy="0 0 0" />
+      <parent
+        link="${prefix}rfproximal" />
+      <child
+        link="${prefix}rfmiddle" />
+      <axis
+        xyz="-1 0 0" />
+      <limit
+        lower="${joint_zero}"
+        upper="${joint_pi2}"
+        effort="${joint_effort}"
+        acceleration="${joint_acc}"
+        velocity="${joint_vel}" />
+    </joint>
+    <link name="${prefix}rfdistal">
+      <inertial>
+        <origin
+          xyz="3.38435155702848E-05 -0.00177252148491626 0.0153053210165263"
+          rpy="0 0 0" />
+        <mass
+          value="0.00659900057710197" />
+        <inertia
+          ixx="4.53711318262054E-07"
+          ixy="-4.16948263152148E-09"
+          ixz="1.31295172941482E-08"
+          iyy="4.86659224347459E-07"
+          iyz="4.50237945612894E-08"
+          izz="1.810853315825E-07" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/rfdistal.STL" />
+        </geometry>
+        <material name="brown"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/rfdistal.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}RFJ1" type="revolute">
+      <mimic joint="${prefix}RFJ2" multiplier="1" offset="0" />
+      <origin
+        xyz="0 0 0.025106"
+        rpy="0 0 0" />
+      <parent
+        link="${prefix}rfmiddle" />
+      <child
+        link="${prefix}rfdistal" />
+      <axis
+        xyz="-1 0 0" />
+      <limit
+        lower="${joint_zero}"
+        upper="${joint_pi2}"
+        effort="${joint_effort}"
+        acceleration="${joint_acc}"
+        velocity="${joint_vel}" />
+    </joint>
+    <link name="${prefix}rftip" />
+    <joint name="${prefix}RFJ0" type="fixed">
+      <origin
+        xyz="0 0.0034687 0.027004"
+        rpy="0 0 0" />
+      <parent
+        link="${prefix}rfdistal" />
+      <child
+        link="${prefix}rftip" />
+      <axis
+        xyz="0 0 0" />
+    </joint>
+    <link name="${prefix}lfbase">
+      <inertial>
+        <origin
+          xyz="0.000417749629816309 7.32097195401474E-05 0.00792478682604991"
+          rpy="0 0 0" />
+        <mass
+          value="0.00475656968450644" />
+        <inertia
+          ixx="1.45404505682755E-07"
+          ixy="-3.35463543782195E-09"
+          ixz="6.11463413079715E-09"
+          iyy="2.27275248103696E-07"
+          iyz="-1.68679769471141E-09"
+          izz="2.30081170020272E-07" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/lfbase.STL" />
+        </geometry>
+        <material name="light_grey"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/lfbase.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}LFJ4" type="revolute">
+      <origin
+        xyz="-0.034498 0 0.078"
+        rpy="0 0 1.5708" />
+      <parent
+        link="${prefix}palm" />
+      <child
+        link="${prefix}lfbase" />
+      <axis
+        xyz="1 0 0" />
+      <limit
+        lower="${joint_pi12_}"
+        upper="${joint_pi12}"
+        effort="${joint_effort}"
+        acceleration="${joint_acc}"
+        velocity="${joint_vel}" />
+    </joint>
+    <link name="${prefix}lfproximal">
+      <inertial>
+        <origin
+          xyz="-0.000569381732622574 -0.000998983572481769 0.0231808920257131"
+          rpy="0 0 0" />
+        <mass
+          value="0.00685015055943156" />
+        <inertia
+          ixx="1.57167239189962E-06"
+          ixy="-3.19903520756576E-09"
+          ixz="-1.22261198670474E-08"
+          iyy="1.40278800153295E-06"
+          iyz="-1.71273857950107E-08"
+          izz="2.51702914486881E-07" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/lfproximal.STL" />
+        </geometry>
+        <material name="light_grey"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/lfproximal.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}LFJ3" type="revolute">
+      <origin
+        xyz="0.0017536 0 0.018"
+        rpy="0 0 -1.5708" />
+      <parent
+        link="${prefix}lfbase" />
+      <child
+        link="${prefix}lfproximal" />
+      <axis
+        xyz="-1 0 0" />
+      <limit
+        lower="${joint_zero}"
+        upper="${joint_pi2}"
+        effort="${joint_effort}"
+        acceleration="${joint_acc}"
+        velocity="${joint_vel}" />
+    </joint>
+    <link name="${prefix}lfmiddle">
+      <inertial>
+        <origin
+          xyz="0.0002792490411061 -0.00214645518487126 0.0120304317036479"
+          rpy="0 0 0" />
+        <mass
+          value="0.00505558826036659" />
+        <inertia
+          ixx="4.22195581696564E-07"
+          ixy="-2.18930178838532E-10"
+          ixz="-1.36738107508811E-09"
+          iyy="3.34670795636679E-07"
+          iyz="-1.35341148922878E-09"
+          izz="1.42224177094021E-07" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/lfmiddle.STL" />
+        </geometry>
+        <material name="light_grey"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/lfmiddle.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}LFJ2" type="revolute">
+      <origin
+        xyz="0 0.0005 0.045001"
+        rpy="0 0 0" />
+      <parent
+        link="${prefix}lfproximal" />
+      <child
+        link="${prefix}lfmiddle" />
+      <axis
+        xyz="-1 0 0" />
+      <limit
+        lower="${joint_zero}"
+        upper="${joint_pi2}"
+        effort="${joint_effort}"
+        acceleration="${joint_acc}"
+        velocity="${joint_vel}" />
+    </joint>
+    <link name="${prefix}lfdistal">
+      <inertial>
+        <origin
+          xyz="3.38426038910961E-05 -0.00177251263110546 0.0153053107191962"
+          rpy="0 0 0" />
+        <mass
+          value="0.00659899272057233" />
+        <inertia
+          ixx="4.5371042252136E-07"
+          ixy="-4.169496760605E-09"
+          ixz="1.31295706535693E-08"
+          iyy="4.86658718870053E-07"
+          iyz="4.50237193915741E-08"
+          izz="1.81085171996514E-07" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/lfdistal.STL" />
+        </geometry>
+        <material name="brown"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/lfdistal.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}LFJ1" type="revolute">
+      <mimic joint="${prefix}LFJ2" multiplier="1" offset="0" />
+      <origin
+        xyz="0 0 0.025106"
+        rpy="0 0 0" />
+      <parent
+        link="${prefix}lfmiddle" />
+      <child
+        link="${prefix}lfdistal" />
+      <axis
+        xyz="-1 0 0" />
+      <limit
+        lower="${joint_zero}"
+        upper="${joint_pi2}"
+        effort="${joint_effort}"
+        acceleration="${joint_acc}"
+        velocity="${joint_vel}" />
+    </joint>
+    <link name="${prefix}lftip" />
+    <joint name="${prefix}LFJ0" type="fixed">
+      <origin
+        xyz="0 0.003478 0.027004"
+        rpy="0 0 0" />
+      <parent
+        link="${prefix}lfdistal" />
+      <child
+        link="${prefix}lftip" />
+      <axis
+        xyz="0 0 0" />
+    </joint>
+    <link name="${prefix}central" />
+    <joint name="${prefix}CJ0" type="fixed">
+      <origin
+        xyz="0 0.02335 0.045"
+        rpy="0 0 0" />
+      <parent
+        link="${prefix}palm" />
+      <child
+        link="${prefix}central" />
+      <axis
+        xyz="0 0 0" />
+    </joint>
+  </xacro:macro>
+</robot>

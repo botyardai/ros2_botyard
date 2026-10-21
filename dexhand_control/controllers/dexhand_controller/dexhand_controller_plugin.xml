@@ -1,0 +1,7 @@
+<library path="dexhand_controller">
+  <class name="dexhand_controller/DexhandController" type="dexhand_controller::DexhandController" base_class_type="controller_interface::ControllerInterface">
+  <description>
+    The controller for botyard dexhand.
+  </description>
+  </class>
+</library>
