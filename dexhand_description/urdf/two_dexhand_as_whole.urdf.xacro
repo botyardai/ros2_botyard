@@ -4,8 +4,9 @@
     <xacro:arg name="use_ros2_control" default="false" />
     <xacro:arg name="use_gazebo" default="false" />
     <xacro:arg name="use_mock_dexhand" default="false" />
+    <xacro:arg name="dexhand_type" default="gs_s1" />
     <xacro:arg name="dexhand_initial_positions_file" default="$(find dexhand_description)/config/initial_positions.yaml" />
-    <xacro:arg name="dexhand_joint_limits_file" default="$(find dexhand_description)/config/joint_limits.yaml" />
+    <xacro:arg name="dexhand_joint_limits_file" default="$(find dexhand_description)/config/$(arg dexhand_type)/joint_limits.yaml" />
     <xacro:arg name="dexhand_link_configs_file" default="$(find dexhand_description)/config/link_configs.yaml" />
     <!-- Import materials used in urdf -->
     <xacro:include filename="$(find dexhand_description)/urdf/inc/common.materials.xacro"/>
@@ -19,11 +20,11 @@
     <!-- create link fixed to the "world" -->
     <link name="world"/>
     <!-- left dexhand -->
-    <xacro:dexhand_macro use_left_hand="true" prefix="$(arg lh_prefix)" parent_link="world" joint_type="fixed">
+    <xacro:dexhand_macro use_left_hand="true" prefix="$(arg lh_prefix)" parent_link="world" joint_type="fixed" dexhand_type="$(arg dexhand_type)">
         <origin xyz="0.5 0 0" rpy="0 0 0" />  
     </xacro:dexhand_macro>
     <!-- right dexhand -->
-    <xacro:dexhand_macro use_left_hand="false" prefix="$(arg rh_prefix)" parent_link="world" joint_type="fixed">
+    <xacro:dexhand_macro use_left_hand="false" prefix="$(arg rh_prefix)" parent_link="world" joint_type="fixed" dexhand_type="$(arg dexhand_type)">
         <origin xyz="-0.5 0 0" rpy="0 0 0" />  
     </xacro:dexhand_macro>
 <!-- construct pure URDF end -->
@@ -38,8 +39,8 @@
             name="multi_dexhand_as_a_whole"
             use_gazebo="$(arg use_gazebo)"
             use_mock_dexhand="$(arg use_mock_dexhand)"
-            initial_positions_file="$(arg initial_positions_file)"
-            joint_limits_file="$(arg joint_limits_file)"
+            initial_positions_file="$(arg dexhand_initial_positions_file)"
+            joint_limits_file="$(arg dexhand_joint_limits_file)"
             prefix="${prefix_list}"
         />
     </xacro:if>
@@ -48,13 +49,13 @@
     <xacro:if value="$(arg use_gazebo)">
         <xacro:include filename="$(find dexhand_description)/config/dexhand.gazebo.xacro"/>
         <xacro:dexhand_gazebo_attribute
-            link_configs_file="$(arg link_configs_file)"
-            joint_limits_file="$(arg joint_limits_file)"
+            link_configs_file="$(arg dexhand_link_configs_file)"
+            joint_limits_file="$(arg dexhand_joint_limits_file)"
             prefix="${prefix_list}"
         />
         <xacro:dexhand_gazebo_plugin
             use_ros2_control="$(arg use_ros2_control)"
-            joint_limits_file="$(arg joint_limits_file)"
+            joint_limits_file="$(arg dexhand_joint_limits_file)"
             prefix="${prefix_list}"
         />
     </xacro:if>

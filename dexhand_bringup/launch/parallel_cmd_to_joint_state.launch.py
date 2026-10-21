@@ -35,6 +35,8 @@ robot_state_publisher  <--------${joint_state_topic_arg}------------|
 
 def generate_launch_description():
 
+    dexhand_type_arg = DeclareLaunchArgument(
+        'dexhand_type', default_value='gs_s1', choices=['gs_s1', 'gs_s2'])
     namespace_arg = DeclareLaunchArgument('namespace', default_value='parallel/dexhand',
                                         description='add custom namespace for all the nodes, useful for multi-robot system. no slash at the beginning & end')
     cmd_topic_arg = DeclareLaunchArgument('cmd_topic', default_value='/dexhand_position_controller/commands',
@@ -47,6 +49,7 @@ def generate_launch_description():
             [PathJoinSubstitution([FindPackageShare('dexhand_description'), 'launch', 'description.launch.py'])]),
         launch_arguments=[
             ('namespace', LaunchConfiguration('namespace')),
+            ('xacro_args', [' dexhand_type:=', LaunchConfiguration('dexhand_type')]),
             ('use_rviz', str(True)), # 启用Rviz
             ('use_jsp', str(False)),
         ]
@@ -69,6 +72,7 @@ def generate_launch_description():
     # Create the launch description and populate
     ld = LaunchDescription()
 
+    ld.add_action(dexhand_type_arg)
     ld.add_action(namespace_arg)
     ld.add_action(cmd_topic_arg)
     ld.add_action(joint_state_topic_arg)

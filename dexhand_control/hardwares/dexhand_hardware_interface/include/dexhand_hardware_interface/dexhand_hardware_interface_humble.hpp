@@ -18,7 +18,6 @@
 
 #include <string>
 #include <vector>
-#include <mutex>
 
 #include "hardware_interface/system_interface.hpp"
 #include "hardware_interface/handle.hpp"
@@ -32,7 +31,6 @@
 #include "dexhand_hardware_interface/dexhand_hardware_interface_realtime.hpp"
 #include "dexhand_driver/dexhand_driver.hpp"
 
-// #define DEBUG
 using dexhand_driver::DexhandDriver;
 using dexhand_driver::DofData;
 
@@ -84,9 +82,9 @@ public:
     bool write_tactile_command(const std::string& name, const std::string& tact_dim,
         dexhand_driver::TactDataMap& tactDataMap);
 private:
-    std::mutex mutex_;
     rclcpp::Logger logger_;
     std::string joint_prefix; // 多只手，则每个手的关节在URDF中会加前缀来保证唯一性
+    std::string communicate_; // 通信接口类型: RS485/CANFD/EtherCAT(统一转小写存储, 不区分大小写)
     std::vector<std::string> configured_joints_; // 所有<ros2_control>tag配置的joint(需要去掉joint_prefix)
     std::vector<std::string> coupled_joint_names = {"FFJ1", "MFJ1", "RFJ1", "LFJ1"}; // 从动关节
     std::vector<std::string> position_configured_joints_; // 配置了position的关节

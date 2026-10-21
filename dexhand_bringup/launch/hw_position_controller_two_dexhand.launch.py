@@ -38,13 +38,15 @@ def generate_launch_description():
     
     lh_port_name_arg = DeclareLaunchArgument(name='lh_port_name', default_value='/dev/ttyACM0', description='port name of left hand')
     rh_port_name_arg = DeclareLaunchArgument(name='rh_port_name', default_value='/dev/ttyACM1', description='port name of right hand')
+    dexhand_type_arg = DeclareLaunchArgument(name='dexhand_type', default_value='gs_s1', choices=['gs_s1', 'gs_s2'])
     namespace_arg = DeclareLaunchArgument(name='namespace', default_value='two_dexhand',
                                         description='add custom namespace for all the nodes, useful for multi-robot system. no slash at the beginning & end')
     namespace = LaunchConfiguration('namespace')
     two_dexhand_xacro_args = [' use_ros2_control:=true use_gazebo:=false ',
                               ' use_mock_dexhand:=false ',
                               ' lh_port_name:=', LaunchConfiguration('lh_port_name'),
-                              ' rh_port_name:=', LaunchConfiguration('rh_port_name'), ]
+                              ' rh_port_name:=', LaunchConfiguration('rh_port_name'),
+                              ' dexhand_type:=', LaunchConfiguration('dexhand_type'), ]
 
     two_dexhand_rviz_config = PathJoinSubstitution([FindPackageShare('dexhand_bringup'), 'rviz', 'two_dexhand.rviz']),
     robot_description = IncludeLaunchDescription(
@@ -95,6 +97,7 @@ def generate_launch_description():
     ld.add_action(namespace_arg)
     ld.add_action(lh_port_name_arg)
     ld.add_action(rh_port_name_arg)
+    ld.add_action(dexhand_type_arg)
     # 添加各个节点
     ld.add_action(robot_description)
     ld.add_action(ros2_control)

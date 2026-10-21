@@ -3,12 +3,14 @@ project(dexhand_controller)
 
 set(THIS_PACKAGE_INCLUDE_DEPENDS
   controller_interface
+  dexhand_interfaces
   forward_command_controller
   generate_parameter_library
   hardware_interface
   pal_statistics
   pluginlib
   rclcpp
+  rclcpp_action
   rclcpp_lifecycle
   realtime_tools
   std_msgs
@@ -27,6 +29,7 @@ generate_parameter_library(
 
 add_library(dexhand_controller SHARED
   src/dexhand_controller.cpp
+  src/gesture_session.cpp
 )
 target_compile_features(dexhand_controller PUBLIC cxx_std_17)
 target_include_directories(dexhand_controller PUBLIC
@@ -36,12 +39,14 @@ target_include_directories(dexhand_controller PUBLIC
 )
 ament_target_dependencies(dexhand_controller
   controller_interface
+  dexhand_interfaces
   forward_command_controller
   generate_parameter_library
   hardware_interface
   pal_statistics
   pluginlib
   rclcpp
+  rclcpp_action
   rclcpp_lifecycle
   realtime_tools
   std_msgs

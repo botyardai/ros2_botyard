@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="forearm_macro" params="use_left_hand prefix parent_link joint_type *origin">
+    <!-- Constants for robot description -->
+    <xacro:property name="joint_zero" value="0.0"/>
+    <xacro:property name="joint_pi2" value="1.5708"/>
+    <xacro:property name="joint_pi2_" value="-1.5708"/>
+    <xacro:property name="joint_pi6" value="0.5235"/>
+    <xacro:property name="joint_pi6_" value="-0.5235"/>
+    <xacro:property name="joint_pi9" value="0.3491"/>
+    <xacro:property name="joint_pi9_" value="-0.3491"/>
+    <xacro:property name="joint_pi12" value="0.2618"/>
+    <xacro:property name="joint_pi12_" value="-0.2618"/>
+    <xacro:property name="joint_pr" value="0.02"/>
+    <xacro:property name="joint_pr_" value="-0.02"/>
+    <xacro:property name="joint_vel" value="3.14"/>
+    <xacro:property name="joint_acc" value="3.14"/>
+    <xacro:property name="joint_effort" value="10"/>
+    <!-- define a joint connect to other part of robot -->
+    <joint name="${prefix}FOREARM" type="${joint_type}">
+      <xacro:insert_block name="origin"/>
+      <parent link="${parent_link}"/>
+      <child link="${prefix}fabase"/>
+    </joint>
+    <!-- pure URDF goes below -->
+
+
+    <link name="${prefix}fabase">
+      <inertial>
+        <origin
+          xyz="0.00015326067121983 0.003284959886772 0.10011287975341"
+          rpy="0 0 0" />
+        <mass
+          value="0.132734058907456" />
+        <inertia
+          ixx="0.000236445209874305"
+          ixy="6.69121480558777E-08"
+          ixz="-1.82883205243278E-07"
+          iyy="0.000343511786483886"
+          iyz="-2.18952614515838E-06"
+          izz="0.000165678613510395" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/gs_s1/fabase.STL" />
+        </geometry>
+        <!-- 使用外部定义的 material -->
+        <material name="black"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/gs_s1/fabase.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <link name="${prefix}falink1">
+      <inertial>
+        <origin
+          xyz="1.16913196059774E-09 -6.63470772072072E-09 4.47654968649402E-11"
+          rpy="0 0 0" />
+        <mass
+          value="0.00243603388199169" />
+        <inertia
+          ixx="1.17479843968966E-07"
+          ixy="4.8135897706786E-14"
+          ixz="-2.09057526869796E-13"
+          iyy="2.11794744833848E-07"
+          iyz="-1.87617276366084E-16"
+          izz="2.15582330173822E-07" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/gs_s1/falink1.STL" />
+        </geometry>
+        <material name="grey"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/gs_s1/falink1.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}FAJ1" type="revolute">
+      <!-- FAJ1 is alias of Pitch axis -->
+      <origin
+        xyz="0 0.017433 0.21"
+        rpy="0 0 0" />
+      <parent
+        link="${prefix}fabase" />
+      <child
+        link="${prefix}falink1" />
+      <axis
+        xyz="-1 0 0" />
+      <limit
+          lower="${radians(-15.0)}"
+          upper="${radians(40.0)}"
+          effort="${joint_effort}"
+          acceleration="${joint_acc}"
+          velocity="${joint_vel}" />
+    </joint>
+    <link name="${prefix}pmbase">
+      <inertial>
+        <origin
+          xyz="-0.0167574746836664 3.14582450128166E-07 0.0129338901420406"
+          rpy="0 0 0" />
+        <mass
+          value="0.00504917061240026" />
+        <inertia
+          ixx="1.60737618657549E-06"
+          ixy="1.81026924049401E-11"
+          ixz="-8.39153426293797E-08"
+          iyy="9.05987343578155E-07"
+          iyz="8.35328758172484E-12"
+          izz="2.09599907093059E-06" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/gs_s1/pmbase.STL" />
+        </geometry>
+        <material name="grey"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/gs_s1/pmbase.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}FAJ3" type="revolute">
+      <!-- FAJ3 is alias of Yaw axis -->
+      <origin
+        xyz="0 0.0024852 0"
+        rpy="0 0 1.5708" />
+      <parent
+        link="${prefix}falink1" />
+      <child
+        link="${prefix}pmbase" />
+      <xacro:if value="${use_left_hand}">
+        <axis xyz="1 0 0" />
+      </xacro:if>
+      <xacro:unless value="${use_left_hand}">
+        <!-- right hand need to mirror left -->
+        <axis xyz="-1 0 0" />
+      </xacro:unless>
+      <limit
+          lower="${radians(-15.0)}"
+          upper="${radians(15.0)}"
+          effort="${joint_effort}"
+          acceleration="${joint_acc}"
+          velocity="${joint_vel}" />
+    </joint>
+
+  </xacro:macro>
+</robot>

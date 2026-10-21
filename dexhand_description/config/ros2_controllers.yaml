@@ -2,12 +2,12 @@
 /**:  # 使用通配符允许任何命名空间
   controller_manager:
     ros__parameters:
-      update_rate: 10  # Hz
+      update_rate: 100  # Hz
 
       # registered controllers which will be used in CM's service /controller_manager/list_controllers
       joint_state_broadcaster:
         type: joint_state_broadcaster/JointStateBroadcaster
-        publish_rate: 10 # HZ
+        publish_rate: 100 # HZ
 
       dexhand_controller:
         type: dexhand_controller/DexhandController

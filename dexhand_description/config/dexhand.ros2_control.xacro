@@ -1,6 +1,12 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
+    <!-- 手势 gpio 只在实现了 do_gesture 的硬件接口上注入：Humble 版硬件接口把所有 gpio 当作
+         触觉区域处理，不导出 mode/gesture_id 命令接口，注入后 ResourceManager 会因找不到接口
+         而让整个硬件激活失败。默认按发行版判断，可用 use_gesture_gpio:=true/false 显式覆盖。 -->
+    <xacro:property name="ros_distro" value="$(optenv ROS_DISTRO jazzy)"/>
+    <xacro:arg name="use_gesture_gpio" default="${ros_distro != 'humble'}"/>
+
     <xacro:macro name="command_state_interface" params="name joint_limit init_position ">
         <joint name="${name}">
             <xacro:if value="${joint_limit['has_velocity_limits']}">
@@ -89,8 +95,28 @@
         </xacro:if>
     </xacro:macro>
 
+    <xacro:macro name="loop_gesture_interface" params="prefix:=^">
+        <xacro:if value="${prefix}">
+            <xacro:property name="pre" value="${prefix.pop(0)}"/>
+            <gpio name="${pre}do_gesture">
+                <!-- ros2_control 4.29 仅支持 double/bool；接口值仍严格遵循 uint8 语义。 -->
+                <command_interface name="mode" data_type="double">
+                    <!-- 1 = TOPIC：上电即按 topic 命令控制，无 IDLE 中间态 -->
+                    <param name="initial_value">1</param>
+                </command_interface>
+                <command_interface name="gesture_id" data_type="double">
+                    <param name="initial_value">0</param>
+                </command_interface>
+                <state_interface name="result" data_type="double">
+                    <param name="initial_value">0</param>
+                </state_interface>
+            </gpio>
+            <xacro:loop_gesture_interface/>
+        </xacro:if>
+    </xacro:macro>
+
     <xacro:macro name="dexhand_ros2_control" params="name initial_positions_file joint_limits_file use_gazebo:=false use_mock_dexhand:=false
-                                                     port_name:=/dev/dexhand hand_id:=0 baudrate:=1000000 timeout_ms:=200 prefix:=${['']}">
+                                                     port_name:=/dev/dexhand communicate:=RS485 hand_id:=0 baudrate:=1000000 timeout_ms:=200 gesture_timeout_ms:=5000 prefix:=${['']}">
         <xacro:property name="initial_positions" value="${xacro.load_yaml(initial_positions_file)['initial_positions']}"/>
         <xacro:property name="joint_limits" value="${xacro.load_yaml(joint_limits_file)['joint_limits']}"/>
         <xacro:property name="joint_names" value="${xacro.load_yaml(joint_limits_file)['joint_names']}"/>
@@ -124,10 +150,12 @@
                     <!-- 连接真机通信 -->
                     <plugin>dexhand_hardware_interface/DexhandHardwareInterface</plugin>
                     <param name="joint_prefix">${joint_prefix}</param>
+                    <param name="communicate">${communicate}</param>
                     <param name="port_name">${port_name}</param>
                     <param name="hand_id">${hand_id}</param>
                     <param name="baudrate">${baudrate}</param>
                     <param name="timeout_ms">${timeout_ms}</param>
+                    <param name="gesture_timeout_ms">${gesture_timeout_ms}</param>
                 </hardware>
             </xacro:unless>
             <!-- joint -->
@@ -135,6 +163,11 @@
             <!-- tactile sensors / ForceTorchSensor -->
             <xacro:property name="tactile_names" value="${['THT0', 'FFT0', 'MFT0', 'RFT0', 'LFT0']}"/>
             <xacro:loop_tactile_interface items="${list(tactile_names)}" prefix="${list(prefix)}"/>
+            <!-- 手势 Action 使用的命令与结果接口。判断放在此处而非 loop_gesture_interface 内部：
+                 xacro 在递归宏里求值 arg/property 会爆栈（maximum recursion depth exceeded）。 -->
+            <xacro:if value="${xacro.arg('use_gesture_gpio')}">
+                <xacro:loop_gesture_interface prefix="${list(prefix)}"/>
+            </xacro:if>
         </ros2_control>
     </xacro:macro>
 </robot>

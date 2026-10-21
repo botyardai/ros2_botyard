@@ -3,8 +3,14 @@
 
 #include "dexhand_controller/dexhand_controller.hpp"
 
+#include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <functional>
+#include <limits>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -17,12 +23,72 @@
 
 namespace dexhand_controller
 {
+using dexhand_interfaces::DexhandMode;
+using dexhand_interfaces::GestureResult;
+
+namespace
+{
+// 收尾握手（下发 TOPIC+0 → hardware 复位并回报 IDLE）正常只差 1~2 个 RT 周期；
+// 超过该宽限期仍未确认，说明 hardware 侧异常，强制清除占位标志，避免后续手势被永久拒绝。
+constexpr auto kGestureCleanupGrace = std::chrono::milliseconds(1000);
+// 执行期 BUSY feedback 的节流周期。
+constexpr auto kFeedbackPeriod = std::chrono::milliseconds(100);
+
+// GoalObserver 的 ROS 适配：包住 goal handle，把纯领域结果翻译成 action 的 succeed/canceled/abort。
+class GoalHandleObserver : public GoalObserver
+{
+public:
+  GoalHandleObserver(std::shared_ptr<GestureGoalHandle> handle, rclcpp::Logger logger)
+  : handle_(std::move(handle)), logger_(logger) {}
+
+  bool is_canceling() const override
+  {
+    return handle_->is_canceling();
+  }
+
+  void succeeded(const GestureResult result) override
+  {
+    handle_->succeed(make_result(result));
+  }
+
+  void canceled(const GestureResult result) override
+  {
+    handle_->canceled(make_result(result));
+  }
+
+  void aborted(const GestureResult result) override
+  {
+    handle_->abort(make_result(result));
+  }
+
+  void busy_feedback() override
+  {
+    auto feedback = std::make_shared<DoGestureAction::Feedback>();
+    feedback->state = dexhand_interfaces::to_uint8(GestureResult::BUSY);
+    handle_->publish_feedback(feedback);
+  }
+
+private:
+  std::shared_ptr<DoGestureAction::Result> make_result(const GestureResult result)
+  {
+    auto response = std::make_shared<DoGestureAction::Result>();
+    response->result = dexhand_interfaces::to_uint8(result);
+    response->description = std::string(dexhand_interfaces::to_string(result));
+    RCLCPP_INFO(logger_, "Gesture finished: %s (result=%u)",
+      response->description.c_str(), response->result);
+    return response;
+  }
+
+  std::shared_ptr<GestureGoalHandle> handle_;
+  rclcpp::Logger logger_;
+};
+}  // namespace
+
 // DexhandController class
 DexhandController::DexhandController()
 : controller_interface::ControllerInterface(),
-rt_command_ptr_(nullptr),
-tactiles_publisher_(nullptr),
-command_subscriber_(nullptr) { }
+  tactiles_publisher_(nullptr),
+  command_subscriber_(nullptr) {}
 
 
 void DexhandController::declare_parameters()
@@ -34,58 +100,31 @@ controller_interface::CallbackReturn DexhandController::read_parameters()
 {
   params_ = param_listener_->get_params();
 
+  command_interface_names_.clear();
+  state_interface_names_.clear();
+
   if (params_.joints.empty()) {
     RCLCPP_ERROR(get_node()->get_logger(), "'joints' parameter is empty");
     return controller_interface::CallbackReturn::ERROR;
   }
 
-  /*
-  if (params_.interface_names.size() != 3) {
-    RCLCPP_ERROR(get_node()->get_logger(), "'interface_names' parameter must have 3 elements.");
-    return controller_interface::CallbackReturn::ERROR;
-  } else {
-    for (const auto & interface : params_.interface_names) {
-      if (interface != hardware_interface::HW_IF_POSITION &&
-          interface != hardware_interface::HW_IF_VELOCITY &&
-          interface != hardware_interface::HW_IF_EFFORT) {
-        RCLCPP_ERROR(get_node()->get_logger(),
-                "Invalid interface name '%s' in 'interface_names' parameter. Valid options are: '%s', '%s', '%s'",
-                interface.c_str(),
-                hardware_interface::HW_IF_POSITION,
-                hardware_interface::HW_IF_VELOCITY,
-                hardware_interface::HW_IF_EFFORT);
-        return controller_interface::CallbackReturn::ERROR;
-      }
-    }
-  }
-
-  if (params_.tactiles.size() != 5) {
-    RCLCPP_ERROR(get_node()->get_logger(), "'tactiles' parameter must have 5 elements.");
-    return controller_interface::CallbackReturn::ERROR;
-  } else {
-    for (const auto & interface : params_.tactiles) {
-      if (interface != "THT0" && interface != "FFT0" &&
-          interface != "MFT0" && interface != "RFT0" &&
-          interface != "LFT0") {
-        RCLCPP_ERROR(get_node()->get_logger(),
-          "Invalid interface name '%s' in 'tactiles' parameter. Valid options: 'THT0', 'FFT0', 'MFT0', 'RFT0', 'LFT0'",
-          interface.c_str());
-        return controller_interface::CallbackReturn::ERROR;
-      }
-    }
-  }
-  */
   if (params_.tactiles.empty()) {
     RCLCPP_ERROR(get_node()->get_logger(), "'tactiles' parameter is empty");
     return controller_interface::CallbackReturn::ERROR;
   }
+  if (params_.gesture_gpio.empty()) {
+    RCLCPP_ERROR(get_node()->get_logger(), "'gesture_gpio' parameter is empty");
+    return controller_interface::CallbackReturn::ERROR;
+  }
+  if (params_.gesture_result_timeout_ms <= 0) {
+    RCLCPP_ERROR(get_node()->get_logger(),
+      "'gesture_result_timeout_ms' must be greater than zero");
+    return controller_interface::CallbackReturn::ERROR;
+  }
 
-
-  // cmd_step_ = params_.interface_names.size();
   cmd_step_ = 3;
   least_cmd_num_ = params_.joints.size();
   least_pos_plus_tactile_num_ = least_cmd_num_ + params_.tactiles.size();
-  // least_pos_plus_tactile_num_ = least_cmd_num_ + 5;
 
   for (const auto & joint : params_.joints) {
     for (const auto & interface : interface_names_) {
@@ -100,6 +139,15 @@ controller_interface::CallbackReturn DexhandController::read_parameters()
     state_interface_names_.push_back(tact + "/" + "fy");
     state_interface_names_.push_back(tact + "/" + "fz");
   }
+  topic_command_interface_count_ = command_interface_names_.size();
+  tactile_state_interface_count_ = state_interface_names_.size();
+  // do_gesture gpio 的三个接口紧跟在 topic 命令 / 触觉状态之后，记下下标避免散落偏移量
+  mode_interface_index_ = command_interface_names_.size();
+  command_interface_names_.push_back(params_.gesture_gpio + "/mode");
+  gesture_id_interface_index_ = command_interface_names_.size();
+  command_interface_names_.push_back(params_.gesture_gpio + "/gesture_id");
+  result_interface_index_ = state_interface_names_.size();
+  state_interface_names_.push_back(params_.gesture_gpio + "/result");
 
   return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -109,7 +157,8 @@ controller_interface::CallbackReturn DexhandController::on_init()
   try {
     declare_parameters();
   } catch (const std::exception & e) {
-    RCLCPP_ERROR(get_node()->get_logger(), "Exception thrown during init stage with message: %s", e.what());
+    RCLCPP_ERROR(get_node()->get_logger(), "Exception thrown during init stage with message: %s",
+        e.what());
     return controller_interface::CallbackReturn::ERROR;
   }
 
@@ -124,29 +173,112 @@ controller_interface::CallbackReturn DexhandController::on_configure(
     return ret;
   }
 
+  // 手势状态机与 ROS 解耦：本类只作为 ChannelPort 与 action/timer adapter 的宿主。
+  const auto logger = get_node()->get_logger();
+  const auto clock = get_node()->get_clock();
+  // 私有继承的向上转型必须在成员函数上下文完成，不能交给 make_unique 的模板实例化。
+  ChannelPort & channel_port = *this;
+  session_ = std::make_unique<GestureSession>(
+    GestureSessionConfig{
+      std::chrono::milliseconds(params_.gesture_result_timeout_ms),
+      kGestureCleanupGrace,
+      kFeedbackPeriod},
+    channel_port,
+    [logger, clock](std::string_view message) {
+      RCLCPP_WARN_THROTTLE(
+        logger, *clock, 1000, "%.*s", static_cast<int>(message.size()), message.data());
+    });
+
+  callback_group_ = get_node()->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+  rclcpp::SubscriptionOptions subscription_options;
+  subscription_options.callback_group = callback_group_;
   command_subscriber_ = get_node()->create_subscription<CmdType>(
     "~/commands", rclcpp::SystemDefaultsQoS(),
     [this](const CmdType::SharedPtr msg) {
       const auto cmd = *msg;
 
-      if (!std::all_of( cmd.data.cbegin(), cmd.data.cend(),
-            [](const auto & value) { return std::isfinite(value); })) {
+      if (!std::all_of(cmd.data.cbegin(), cmd.data.cend(),
+      [](const auto & value) {return std::isfinite(value);}))
+      {
         RCLCPP_WARN_THROTTLE(
           get_node()->get_logger(), *(get_node()->get_clock()), 1000,
           "Non-finite value received. Dropping message");
         return;
       }
-      rt_command_ptr_.writeFromNonRT(msg);
-    });
+      std::lock_guard<std::mutex> lock(gesture_mutex_);
+      if (!session_->active() || session_->claimed()) {
+        // 手势期间收到的 topic 直接丢弃，不缓存到手势结束后补发。
+        return;
+      }
+      pending_command_.topic = msg;
+      command_buffer_.writeFromNonRT(pending_command_);
+    }, subscription_options);
+
+  gesture_action_ = rclcpp_action::create_server<DoGestureAction>(
+    get_node(), "~/do/gesture",
+    std::bind(&DexhandController::handle_goal, this,
+      std::placeholders::_1, std::placeholders::_2),
+    std::bind(&DexhandController::handle_cancel, this, std::placeholders::_1),
+    std::bind(&DexhandController::handle_accepted, this, std::placeholders::_1),
+    rcl_action_server_get_default_options(), callback_group_);
+  gesture_timer_ = get_node()->create_wall_timer(
+    std::chrono::milliseconds(10), std::bind(&DexhandController::poll_gesture, this),
+    callback_group_);
 
   // Create tactile publisher
   tactiles_publisher_ = get_node()->create_publisher<std_msgs::msg::Float64MultiArray>(
     "~/state/tactiles", rclcpp::SystemDefaultsQoS());
-  // realtime_tactiles_publisher_ =
-  //   std::make_shared<realtime_tools::RealtimePublisher<std_msgs::msg::Float64MultiArray>>(tactiles_publisher_);
 
   RCLCPP_INFO(get_node()->get_logger(), "configure successful");
   return controller_interface::CallbackReturn::SUCCESS;
+}
+
+// 判断是否接受手势目标；具体的接单门禁（ID 非零、已激活、无待收尾或其他任务）由 session 承担。
+rclcpp_action::GoalResponse DexhandController::handle_goal(
+  const rclcpp_action::GoalUUID & uuid,
+  std::shared_ptr<const DoGestureAction::Goal> goal)
+{
+  std::lock_guard<std::mutex> lock(gesture_mutex_);
+  return session_->reserve(uuid, goal->gesture_id) ?
+    rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE : rclcpp_action::GoalResponse::REJECT;
+}
+
+rclcpp_action::CancelResponse DexhandController::handle_cancel(
+  const std::shared_ptr<GestureGoalHandle> goal_handle)
+{
+  std::lock_guard<std::mutex> lock(gesture_mutex_);
+  // rclcpp_action 在本回调返回后才把 goal 置为 CANCELING。
+  // 后续 timer 看到 is_canceling() 后发出停止命令，不能在这里提前返回 canceled。
+  return session_->accept_cancel(goal_handle->get_goal_id()) ?
+    rclcpp_action::CancelResponse::ACCEPT : rclcpp_action::CancelResponse::REJECT;
+}
+
+// 确认预约并启动手势；预约失效或启动失败时释放控制权并 abort 该 goal。
+void DexhandController::handle_accepted(
+  const std::shared_ptr<GestureGoalHandle> goal_handle)
+{
+  std::lock_guard<std::mutex> lock(gesture_mutex_);
+  auto observer = std::make_shared<GoalHandleObserver>(goal_handle, get_node()->get_logger());
+  if (session_->start(goal_handle->get_goal_id(), observer, std::chrono::steady_clock::now())) {
+    return;
+  }
+  auto result = std::make_shared<DoGestureAction::Result>();
+  result->result = dexhand_interfaces::to_uint8(GestureResult::FAILURE);
+  result->description = std::string(dexhand_interfaces::to_string(GestureResult::FAILURE));
+  goal_handle->abort(result);
+}
+
+// 10ms timer：把最近一次 hardware 观测喂给状态机，其余判定（终态/超时/收尾/反馈）都在 session 内。
+void DexhandController::poll_gesture()
+{
+  std::lock_guard<std::mutex> lock(gesture_mutex_);
+  const auto raw = gesture_result_.load(std::memory_order_acquire);
+  HardwareSample sample;
+  if (raw != kInvalidGestureResult) {
+    sample.result = static_cast<GestureResult>(raw);
+    sample.valid = true;
+  }
+  session_->tick(std::chrono::steady_clock::now(), sample);
 }
 
 controller_interface::InterfaceConfiguration
@@ -160,7 +292,7 @@ DexhandController::command_interface_configuration() const
 }
 
 controller_interface::InterfaceConfiguration DexhandController::state_interface_configuration()
-  const
+const
 {
   // 只发布指尖的三维力，关节状态有joint_state_broadcaster发布
   controller_interface::InterfaceConfiguration state_interfaces_config;
@@ -177,7 +309,8 @@ controller_interface::CallbackReturn DexhandController::on_activate(
   //  also verify that we *only* have the resources defined in the "points" parameter
   // ATTENTION(destogl): Shouldn't we use ordered interface all the time?
   std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> ordered_interfaces;
-  bool ok = controller_interface::get_ordered_interfaces(command_interfaces_, command_interface_names_,
+  bool ok = controller_interface::get_ordered_interfaces(command_interfaces_,
+      command_interface_names_,
                                                          std::string(""), ordered_interfaces);
   if (!ok || command_interface_names_.size() != ordered_interfaces.size()) {
     RCLCPP_ERROR(
@@ -186,8 +319,12 @@ controller_interface::CallbackReturn DexhandController::on_activate(
     return controller_interface::CallbackReturn::ERROR;
   }
 
+  std::lock_guard<std::mutex> lock(gesture_mutex_);
   // reset command buffer if a command came through callback when controller was inactive
-  rt_command_ptr_ = realtime_tools::RealtimeBuffer<std::shared_ptr<CmdType>>(nullptr);
+  pending_command_ = ControllerCommand{};
+  gesture_result_.store(kInvalidGestureResult, std::memory_order_release);
+  // session 复位并下发 TOPIC+0，进入等 hardware 确认 IDLE 的收尾握手。
+  session_->activate(std::chrono::steady_clock::now());
 
   RCLCPP_INFO(get_node()->get_logger(), "activate successful");
   return controller_interface::CallbackReturn::SUCCESS;
@@ -196,73 +333,143 @@ controller_interface::CallbackReturn DexhandController::on_activate(
 controller_interface::CallbackReturn DexhandController::on_deactivate(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
-  // instead reset command buffer
-  // rt_command_ptr_ = realtime_tools::RealtimeBuffer<std::shared_ptr<CmdType>>(nullptr);
-
-  // we stop all joints
-  for (auto & command_interface : command_interfaces_) {
-    /*
-    bool ok = command_interface.set_value(0.0);
-    if (!ok)  {
-      RCLCPP_ERROR(get_node()->get_logger(), "on_deactivate(): Failed to set command interface value to 0.0");
-    }
-    */
-    command_interface.set_value(0.0);
+  std::lock_guard<std::mutex> lock(gesture_mutex_);
+  // 中止在飞的手势并释放控制权（预约但未启动的 goal 会由后续 handle_accepted 兜底 abort）。
+  session_->deactivate(std::chrono::steady_clock::now());
+  // 停用后 update() 不再运行，直接将停止请求留在 command interface 交给 hardware。
+  const auto command = session_->channel_command();
+  if (!set_command_value(mode_interface_index_, dexhand_interfaces::to_uint8(command.mode)) ||
+    !set_command_value(gesture_id_interface_index_, command.gesture_id))
+  {
+    return controller_interface::CallbackReturn::ERROR;
   }
 
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
-controller_interface::return_type DexhandController::update(
-  const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
+bool DexhandController::set_command_value(const std::size_t index, const double value)
 {
-  auto dexhand_commands = rt_command_ptr_.readFromRT();
+  if (index >= command_interfaces_.size() || !command_interfaces_[index].set_value(value)) {
+    RCLCPP_ERROR_THROTTLE(
+      get_node()->get_logger(), *(get_node()->get_clock()), 1000,
+      "Failed to set command interface at index %zu", index);
+    return false;
+  }
+  return true;
+}
 
-  if (dexhand_commands && (*dexhand_commands)) {
-    auto cmd_ptr = *dexhand_commands;
-    if (cmd_ptr->data.size() == command_interfaces_.size()) {  // full command
-      for (auto index = 0ul; index < command_interfaces_.size(); ++index) {
-        command_interfaces_[index].set_value(cmd_ptr->data[index]);
+std::uint8_t DexhandController::read_gesture_result()
+{
+  const auto result_optional = state_interfaces_[result_interface_index_].get_optional<double>();
+  const double result_value = result_optional.value_or(
+    std::numeric_limits<double>::quiet_NaN());
+  constexpr auto max_result = static_cast<double>(
+    dexhand_interfaces::to_uint8(GestureResult::CANCELLED));
+  if (std::isfinite(result_value) && std::floor(result_value) == result_value &&
+    result_value >= 0.0 && result_value <= max_result)
+  {
+    return static_cast<std::uint8_t>(result_value);
+  }
+  // 无效值不能当作收尾完成的 IDLE。
+  return kInvalidGestureResult;
+}
+
+controller_interface::return_type DexhandController::forward_topic_command(
+  const std::shared_ptr<CmdType> & cmd_ptr)
+{
+  if (!cmd_ptr) {
+    return controller_interface::return_type::OK;
+  }
+
+  if (cmd_ptr->data.size() == topic_command_interface_count_) {
+    for (auto index = 0ul; index < topic_command_interface_count_; ++index) {
+      if (!set_command_value(index, cmd_ptr->data[index])) {
+        return controller_interface::return_type::ERROR;
       }
-    } else if (cmd_ptr->data.size() == least_pos_plus_tactile_num_ ||  // position control + tactile control
-               cmd_ptr->data.size() == least_cmd_num_) {  // position control only
-      int index = 0;
-      int base = 0;
-      for (; index < least_cmd_num_; ++index) {
-        base = index * cmd_step_;
-        command_interfaces_[base].set_value(cmd_ptr->data[index]);
-        command_interfaces_[base + 1].set_value(default_vel_);
-        command_interfaces_[base + 2].set_value(default_effort_);
-      }
-      base = index * cmd_step_;
-      bool use_default_tactile = (cmd_ptr->data.size() == least_cmd_num_);
-      for (; base < least_pos_plus_tactile_num_; ) {
-        if (use_default_tactile) {
-          command_interfaces_[base].set_value(default_tactile_);
-        } else {
-          command_interfaces_[base].set_value(cmd_ptr->data[index]);
-        }
-        ++base;
-        ++index;
-      }
-    } else {  // invalid command size
-      RCLCPP_ERROR_THROTTLE(
-        get_node()->get_logger(), *(get_node()->get_clock()), 1000,
-        "command size (%zu) must be equal to position_only (%d) or position+tactile (%d) or full_command (%zu)",
-        cmd_ptr->data.size(), least_cmd_num_, least_pos_plus_tactile_num_, command_interfaces_.size());
+    }
+    return controller_interface::return_type::OK;
+  }
+
+  if (cmd_ptr->data.size() != static_cast<std::size_t>(least_pos_plus_tactile_num_) &&
+    cmd_ptr->data.size() != static_cast<std::size_t>(least_cmd_num_))
+  {
+    RCLCPP_ERROR_THROTTLE(
+      get_node()->get_logger(), *(get_node()->get_clock()), 1000,
+      "command size (%zu) must be equal to position_only (%d), "
+      "position+tactile (%d), or full_command (%zu)",
+      cmd_ptr->data.size(), least_cmd_num_, least_pos_plus_tactile_num_,
+      topic_command_interface_count_);
+    return controller_interface::return_type::ERROR;
+  }
+
+  std::size_t input_index = 0;
+  for (; input_index < static_cast<std::size_t>(least_cmd_num_); ++input_index) {
+    const auto command_index = input_index * static_cast<std::size_t>(cmd_step_);
+    if (!set_command_value(command_index, cmd_ptr->data[input_index]) ||
+      !set_command_value(command_index + 1, default_vel_) ||
+      !set_command_value(command_index + 2, default_effort_))
+    {
       return controller_interface::return_type::ERROR;
     }
   }
 
-  // Publish tactile data
+  const bool use_default_tactile =
+    cmd_ptr->data.size() == static_cast<std::size_t>(least_cmd_num_);
+  auto command_index = input_index * static_cast<std::size_t>(cmd_step_);
+  for (; command_index < topic_command_interface_count_; ++command_index, ++input_index) {
+    const double value = use_default_tactile ? default_tactile_ : cmd_ptr->data[input_index];
+    if (!set_command_value(command_index, value)) {
+      return controller_interface::return_type::ERROR;
+    }
+  }
+  return controller_interface::return_type::OK;
+}
+
+void DexhandController::publish_tactile_state()
+{
   auto tactile_msg = std::make_unique<std_msgs::msg::Float64MultiArray>();
-  // 按照yaml文件中定义的顺序发布指尖的三维力数据
-  for (auto index = 0ul; index < state_interfaces_.size(); ++index) {
-    tactile_msg->data.push_back(state_interfaces_[index].get_value());
-    // RCLCPP_DEBUG(get_node()->get_logger(), "state_interface name: %s", state_interfaces_[index].get_name().c_str());
+  tactile_msg->data.reserve(tactile_state_interface_count_);
+  for (auto index = 0ul; index < tactile_state_interface_count_; ++index) {
+    const auto value = state_interfaces_[index].get_optional<double>();
+    tactile_msg->data.push_back(value.value_or(std::numeric_limits<double>::quiet_NaN()));
   }
   tactiles_publisher_->publish(std::move(tactile_msg));
+}
 
+// ChannelPort：session 在非 RT 侧写 mailbox，update() 在 RT 侧无锁读整份快照。
+void DexhandController::publish_command(const ChannelCommand & command)
+{
+  pending_command_.channel = command;
+  if (command.claimed) {
+    // Clear old topic data in the same snapshot that transfers control to the gesture.
+    pending_command_.topic.reset();
+  }
+  command_buffer_.writeFromNonRT(pending_command_);
+}
+
+controller_interface::return_type DexhandController::update(
+  const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
+{
+  // 把 hardware 观测发布给非 RT 侧的状态机。
+  gesture_result_.store(read_gesture_result(), std::memory_order_release);
+
+  // 一份一致快照即包含控制权与命令，无需再拼接两个独立字段。
+  const auto command_ptr = command_buffer_.readFromRT();
+  const ControllerCommand snapshot = command_ptr ? *command_ptr : ControllerCommand{};
+  const auto & command = snapshot.channel;
+  if (!set_command_value(mode_interface_index_, dexhand_interfaces::to_uint8(command.mode)) ||
+    !set_command_value(gesture_id_interface_index_, command.gesture_id))
+  {
+    return controller_interface::return_type::ERROR;
+  }
+
+  if (!command.claimed &&
+    forward_topic_command(snapshot.topic) != controller_interface::return_type::OK)
+  {
+    return controller_interface::return_type::ERROR;
+  }
+
+  publish_tactile_state();
   return controller_interface::return_type::OK;
 }
 

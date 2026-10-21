@@ -14,3 +14,13 @@ dexhand_controller:
     default_value: [],
     description: "Names of the tactile sensors to command",
   }
+  gesture_gpio: {
+    type: string,
+    default_value: "do_gesture",
+    description: "Name of the gesture GPIO, including any hand prefix",
+  }
+  gesture_result_timeout_ms: {
+    type: int,
+    default_value: 10000,
+    description: "Max time to wait for a terminal gesture result before the action is aborted with TIMEOUT; must be greater than the hardware gesture_timeout_ms",
+  }

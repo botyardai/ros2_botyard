@@ -40,12 +40,19 @@ def generate_launch_description():
     namespace = LaunchConfiguration('namespace')
     xacro_args = DeclareLaunchArgument('xacro_args', default_value=' use_ros2_control:=true use_gazebo:=false use_mock_dexhand:=false',
                                         description='args for xacro when parse .xacro file')
+    dexhand_type_arg = DeclareLaunchArgument(
+        'dexhand_type', default_value='gs_s1', choices=['gs_s1', 'gs_s2'])
+    versioned_xacro_args = [
+        LaunchConfiguration('xacro_args'),
+        ' dexhand_type:=',
+        LaunchConfiguration('dexhand_type'),
+    ]
     
     robot_description = IncludeLaunchDescription(
         PathJoinSubstitution([FindPackageShare('dexhand_description'), 'launch', 'description.launch.py']),
         launch_arguments=[
             ('namespace', namespace),
-            ('xacro_args', LaunchConfiguration('xacro_args')),
+            ('xacro_args', versioned_xacro_args),
             # ('use_rviz', str(True)), # 启用Rviz
             ('use_jsp', str(False)), # 有ros2_control的joint_state_broadcaster就不能再起jsp
         ]
@@ -55,7 +62,6 @@ def generate_launch_description():
         PathJoinSubstitution([FindPackageShare('dexhand_description'), 'launch', 'ros2_control.launch.py']),
         launch_arguments=[
             ('namespace', namespace),
-            ('xacro_args', LaunchConfiguration('xacro_args')),
         ]
     )
 
@@ -85,6 +91,7 @@ def generate_launch_description():
     # 添加launch argument
     ld.add_action(namespace_arg)
     ld.add_action(xacro_args)
+    ld.add_action(dexhand_type_arg)
     # 添加各个节点
     ld.add_action(robot_description)
     ld.add_action(ros2_control)

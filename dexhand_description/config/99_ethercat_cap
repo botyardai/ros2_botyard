@@ -1,0 +1,5 @@
+# 允许 %sudo 组成员免密调用 setpriv，供 dexhand EtherCAT 使用。
+# 对应 ros2_control.launch.py 的 cap_grant:=sudo 前缀：需要 NOPASSWD（launch 子进程无 tty）与 SETENV（sudo -E）。
+# 安装与说明见 dexhand_bringup/README_Ethercat.md「权限与启动方式」。
+# 注意：文件名不能含 "."，否则 sudo 会跳过该文件。
+%sudo ALL=(root) NOPASSWD: SETENV: /usr/bin/setpriv

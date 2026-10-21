@@ -1,0 +1,574 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="forearm_macro" params="prefix parent_link joint_type *origin">
+    <!-- Constants for robot description -->
+    <xacro:property name="joint_zero" value="0.0"/>
+    <xacro:property name="joint_pi2" value="1.5708"/>
+    <xacro:property name="joint_pi2_" value="-1.5708"/>
+    <xacro:property name="joint_pi6" value="0.5235"/>
+    <xacro:property name="joint_pi6_" value="-0.5235"/>
+    <xacro:property name="joint_pi9" value="0.3491"/>
+    <xacro:property name="joint_pi9_" value="-0.3491"/>
+    <xacro:property name="joint_pi12" value="0.2618"/>
+    <xacro:property name="joint_pi12_" value="-0.2618"/>
+    <xacro:property name="joint_pr" value="0.02"/>
+    <xacro:property name="joint_pr_" value="-0.02"/>
+    <xacro:property name="joint_vel" value="3.14"/>
+    <xacro:property name="joint_acc" value="3.14"/>
+    <xacro:property name="joint_effort" value="10"/>
+    <!-- mujoco config -->
+    <mujoco> <compiler discardvisual="false"/> </mujoco>
+    <!-- define a joint connect to other part of robot -->
+    <joint name="${prefix}FOREARM" type="${joint_type}">
+      <xacro:insert_block name="origin"/>
+      <parent link="${parent_link}"/>
+      <child link="${prefix}fabase"/>
+    </joint>
+    <!-- pure URDF goes below -->
+
+
+    <link name="${prefix}fabase">
+      <inertial>
+        <origin
+          xyz="5.39346713552753E-05 0.00500231616409528 0.0787736723375773"
+          rpy="0 0 0" />
+        <mass
+          value="0.145804918280713" />
+        <inertia
+          ixx="0.000269937804349258"
+          ixy="-3.27595669066337E-08"
+          ixz="-9.18112446904156E-08"
+          iyy="0.000385861436752175"
+          iyz="-4.32976671143105E-06"
+          izz="0.000198942634902227" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/gs_s1/fabase.STL" />
+        </geometry>
+        <!-- 使用外部定义的 material -->
+        <material name="black"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/gs_s1/fabase.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <link name="${prefix}fallink2">
+      <inertial>
+        <origin
+          xyz="-1.59211443570804E-05 1.25798336680916E-05 0.0539395171829006"
+          rpy="0 0 0" />
+        <mass
+          value="0.0204458309512044" />
+        <inertia
+          ixx="1.8574461760212E-06"
+          ixy="2.39042707456931E-09"
+          ixz="1.9525766041773E-08"
+          iyy="1.83757801727909E-06"
+          iyz="-1.75022952076346E-09"
+          izz="8.33130932268024E-07" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/gs_s1/fallink2.STL" />
+        </geometry>
+        <material name="grey"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/gs_s1/fallink2.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}FALJ3" type="revolute">
+      <origin
+        xyz="-0.028998 -0.018316 0.0554"
+        rpy="0 0 1.5708" />
+      <parent
+        link="fabase" />
+      <child
+        link="fallink2" />
+      <axis
+        xyz="-1 0 0" />
+      <limit
+          lower="${joint_pi6_}"
+          upper="${joint_pi6}"
+          effort="${joint_effort}"
+          acceleration="${joint_acc}"
+          velocity="${joint_vel}" />
+    </joint>
+    <link name="${prefix}fallink1">
+      <inertial>
+        <origin
+          xyz="0.0124141380783748 -3.5865306860481E-05 1.49138119562298E-09"
+          rpy="0 0 0" />
+        <mass
+          value="0.00373636154150335" />
+        <inertia
+          ixx="7.44680652654181E-08"
+          ixy="6.44765304911628E-10"
+          ixz="-2.05063979868121E-14"
+          iyy="4.239135403813E-07"
+          iyz="1.64026308568944E-14"
+          izz="4.03978755382451E-07" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/gs_s1/fallink1.STL" />
+        </geometry>
+        <material name="grey"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/gs_s1/fallink1.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}FALJ2" type="prismatic">
+      <origin
+        xyz="0 0 0.1245"
+        rpy="1.5708 -1.5708 1.5708" />
+      <parent
+        link="fallink2" />
+      <child
+        link="fallink1" />
+      <axis
+        xyz="1 0 0" />
+      <limit
+          lower="${joint_pr_}"
+          upper="${joint_pr}"
+          effort="${joint_effort}"
+          acceleration="${joint_acc}"
+          velocity="${joint_vel}" />
+    </joint>
+    <link name="${prefix}fallink_site1"/>
+    <joint name="${prefix}FALJ1" type="fixed">
+      <origin
+        xyz="0.04305 0 0"
+        rpy="1.5708 0 1.5708" />
+      <parent
+        link="fallink1" />
+      <child
+        link="fallink_site1" />
+      <axis
+        xyz="0 0 0" />
+    </joint>
+
+    <link name="${prefix}farlink2">
+      <inertial>
+        <origin
+          xyz="-1.65058622529843E-05 1.25807788122559E-05 0.053939517216009"
+          rpy="0 0 0" />
+        <mass
+          value="0.0204458309330003" />
+        <inertia
+          ixx="1.85744617445961E-06"
+          ixy="2.39042957872117E-09"
+          ixz="1.9733633284884E-08"
+          iyy="1.83757801664563E-06"
+          iyz="-1.75046023965786E-09"
+          izz="8.33130931493279E-07" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/gs_s1/farlink2.STL" />
+        </geometry>
+        <material name="grey"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/gs_s1/farlink2.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}FARJ3" type="revolute">
+      <origin
+        xyz="0.029002 -0.018316 0.0554"
+        rpy="0 0 1.5708" />
+      <parent
+        link="fabase" />
+      <child
+        link="farlink2" />
+      <axis
+        xyz="-1 0 0" />
+      <limit
+          lower="${joint_pi6_}"
+          upper="${joint_pi6}"
+          effort="${joint_effort}"
+          acceleration="${joint_acc}"
+          velocity="${joint_vel}" />
+    </joint>
+    <link name="${prefix}farlink1">
+      <inertial>
+        <origin
+          xyz="0.0124141380783958 -3.58653068927538E-05 1.49135176083504E-09"
+          rpy="0 0 0" />
+        <mass
+          value="0.00373636154150333" />
+        <inertia
+          ixx="7.44680758776271E-08"
+          ixy="6.4476530491217E-10"
+          ixz="-4.59403416758684E-14"
+          iyy="4.23913540381297E-07"
+          iyz="1.6402630860326E-14"
+          izz="4.03978744770237E-07" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/gs_s1/farlink1.STL" />
+        </geometry>
+        <material name="grey"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/gs_s1/farlink1.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}FARJ2" type="prismatic">
+      <origin
+        xyz="0 0 0.1245"
+        rpy="1.5708 -1.5708 1.5708" />
+      <parent
+        link="farlink2" />
+      <child
+        link="farlink1" />
+      <axis
+        xyz="1 0 0" />
+      <limit
+          lower="${joint_pr_}"
+          upper="${joint_pr}"
+          effort="${joint_effort}"
+          acceleration="${joint_acc}"
+          velocity="${joint_vel}" />
+    </joint>
+    <link name="${prefix}farlink_site1"/>
+    <joint name="${prefix}FARJ1" type="fixed">
+      <origin
+        xyz="0.04305 0 0"
+        rpy="1.5708 0 1.5708" />
+      <parent
+        link="farlink1" />
+      <child
+        link="farlink_site1" />
+      <axis
+        xyz="0 0 0" />
+    </joint>
+
+    <link name="${prefix}falink2">
+      <inertial>
+        <origin
+          xyz="-8.10398076075969E-09 4.01177138051287E-10 0.00549999656729885"
+          rpy="0 0 0" />
+        <mass
+          value="0.00127776584823898" />
+        <inertia
+          ixx="5.01863386521224E-08"
+          ixy="1.49370816640599E-14"
+          ixz="-5.14504997806162E-14"
+          iyy="5.01863212003859E-08"
+          iyz="1.71620474586843E-14"
+          izz="2.33715865191686E-08" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/gs_s1/falink2.STL" />
+        </geometry>
+        <material name="grey"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/gs_s1/falink2.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}FAJ3" type="revolute">
+      <origin
+        xyz="0 0.022433 0.187"
+        rpy="0 0 1.5708" />
+      <parent
+        link="fabase" />
+      <child
+        link="falink2" />
+      <axis
+        xyz="1 0 0" />
+      <limit
+          lower="${joint_pi9_}"
+          upper="${joint_pi9}"
+          effort="${joint_effort}"
+          acceleration="${joint_acc}"
+          velocity="${joint_vel}" />
+    </joint>
+    <link name="${prefix}falink1">
+      <inertial>
+        <origin
+          xyz="0.000345695298887541 -0.0074237852567453 0.0125285794310658"
+          rpy="0 0 0" />
+        <mass
+          value="0.00505365284927937" />
+        <inertia
+          ixx="5.46811611778656E-07"
+          ixy="5.40904663426643E-09"
+          ixz="3.19965532291861E-09"
+          iyy="5.01997885368424E-07"
+          iyz="1.59084971865264E-07"
+          izz="3.38484036855835E-07" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/gs_s1/falink1.STL" />
+        </geometry>
+        <material name="grey"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/gs_s1/falink1.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}FAJ2" type="revolute">
+      <origin
+        xyz="0 0 0.011"
+        rpy="0 0 -1.5708" />
+      <parent
+        link="falink2" />
+      <child
+        link="falink1" />
+      <axis
+        xyz="-1 0 0" />
+      <limit
+          lower="${joint_pi6_}"
+          upper="${joint_pi6}"
+          effort="${joint_effort}"
+          acceleration="${joint_acc}"
+          velocity="${joint_vel}" />
+    </joint>
+    <link name="${prefix}pmbase">
+      <inertial>
+        <origin
+          xyz="0.000741875984730017 -0.0128192059086978 0.011155415658301"
+          rpy="0 0 0" />
+        <mass
+          value="0.00423306757186461" />
+        <inertia
+          ixx="6.52346974620094E-07"
+          ixy="-3.82296007985838E-10"
+          ixz="-1.07957545329208E-08"
+          iyy="1.26980463533235E-06"
+          iyz="-6.52516039398054E-09"
+          izz="1.59474700075142E-06" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/gs_s1/pmbase.STL" />
+        </geometry>
+        <material name="grey"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/gs_s1/pmbase.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}FAJ1" type="revolute">
+      <origin
+        xyz="0 -0.015149 0.02495"
+        rpy="0 0 0" />
+      <parent
+        link="falink1" />
+      <child
+        link="pmbase" />
+      <axis
+        xyz="1 0 0" />
+      <limit
+          lower="${joint_pi9_}"
+          upper="${joint_pi9}"
+          effort="${joint_effort}"
+          acceleration="${joint_acc}"
+          velocity="${joint_vel}" />
+    </joint>
+
+    <link name="${prefix}fallink0">
+      <inertial>
+        <origin
+          xyz="0.00196206098121281 -1.08394617448493E-08 -6.44521643000662E-09"
+          rpy="0 0 0" />
+        <mass
+          value="0.000485128743076741" />
+        <inertia
+          ixx="5.33745996173601E-09"
+          ixy="-3.22901694677331E-23"
+          ixz="6.3884685315267E-24"
+          iyy="4.18394042162833E-09"
+          iyz="-9.52376345389282E-14"
+          izz="4.18404396302432E-09" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="-0.0115 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/gs_s1/fallink0.STL" />
+        </geometry>
+        <material name="grey"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="-0.0115 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/gs_s1/fallink0.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}FALJ0" type="continuous">
+      <origin
+        xyz="-0.0175 -0.0256 0.00013378"
+        rpy="0 0 0" />
+      <parent
+        link="pmbase" />
+      <child
+        link="fallink0" />
+      <axis
+        xyz="1 0 0" />
+    </joint>
+    <link name="${prefix}fallink_site2"/>
+    <joint name="${prefix}FALJx" type="fixed">
+      <origin
+        xyz="-0.0115 0 -0.00013378"
+        rpy="0 0 0" />
+      <parent link="fallink0" />
+      <child link="fallink_site2" />
+      <axis
+        xyz="1 0 0" />
+    </joint>
+
+    <link name="${prefix}farlink0">
+      <inertial>
+        <origin
+          xyz="-0.00196206098121322 1.07353527734055E-08 -6.61712570154682E-09"
+          rpy="0 0 0" />
+        <mass
+          value="0.000485128743076745" />
+        <inertia
+          ixx="5.33745996173604E-09"
+          ixy="2.94615162784986E-21"
+          ixz="8.20833744699458E-25"
+          iyy="4.18394348341586E-09"
+          iyz="9.68393217721753E-14"
+          izz="4.18404090123684E-09" />
+      </inertial>
+      <visual>
+        <origin
+          xyz="0.0115 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/gs_s1/farlink0.STL" />
+        </geometry>
+        <material name="grey"/>
+      </visual>
+      <collision>
+        <origin
+          xyz="0.0115 0 0"
+          rpy="0 0 0" />
+        <geometry>
+          <mesh
+            filename="package://dexhand_description/meshes/gs_s1/farlink0.STL" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}FARJ0" type="continuous">
+      <origin
+        xyz="0.0175 -0.0256 0.00013378"
+        rpy="0 0 0" />
+      <parent
+        link="pmbase" />
+      <child
+        link="farlink0" />
+      <axis
+        xyz="1 0 0" />
+    </joint>
+    <link name="${prefix}farlink_site2"/>
+    <joint name="${prefix}FARJx" type="fixed">
+      <origin
+        xyz="0.0115 0 -0.00013378"
+        rpy="0 0 0" />
+      <parent
+        link="farlink0" />
+      <child
+        link="farlink_site2" />
+      <axis
+        xyz="1 0 0" />
+    </joint>
+
+  </xacro:macro>
+</robot>

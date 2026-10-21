@@ -1,0 +1,13 @@
+# 目标：要执行的手势 ID
+# 1~254：gesture_presets.conf 中的 key
+# 255  ：两阶段张开
+# 0    ：非法，goal 会被拒绝
+uint8 gesture_id
+---
+# 结果：GestureResult 编码，见 gesture_enums.hpp
+uint8 result
+# 结果的可读描述
+string description
+---
+# 反馈：当前阶段，BUSY(4) 表示执行中
+uint8 state

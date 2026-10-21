@@ -1,5 +1,5 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import Command
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, TextSubstitution
@@ -7,6 +7,69 @@ from launch.substitutions import PythonExpression
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
+
+import os
+import tempfile
+
+import yaml
+
+
+def namespace_rviz_config(config_path, namespace):
+    """按 namespace 调整 RViz 配置中与命名空间相关的字段，返回可用的配置文件路径。
+
+    namespace 非空时 robot_state_publisher 会加 frame_prefix="<ns>/"，并把
+    robot_description/joint_states 挂到 /<ns>/ 下，RViz 配置里的 Fixed Frame、
+    RobotModel 的 Description Topic 与 TF Prefix 必须跟着变，否则模型显示不出来。
+    已经是该 namespace 的字段保持不变，因此适配过的配置(如 two_dexhand.rviz)不受影响。
+    """
+    with open(config_path, 'r') as stream:
+        config = yaml.safe_load(stream)
+
+    manager = config.get('Visualization Manager') if isinstance(config, dict) else None
+    if not isinstance(manager, dict):
+        return config_path
+
+    frame_prefix = namespace + '/'
+    global_options = manager.setdefault('Global Options', {})
+    fixed_frame = global_options.get('Fixed Frame', '')
+    if fixed_frame and not fixed_frame.startswith(frame_prefix):
+        global_options['Fixed Frame'] = frame_prefix + fixed_frame
+
+    for display in manager.get('Displays') or []:
+        if not isinstance(display, dict):
+            continue
+        description_topic = display.get('Description Topic')
+        if isinstance(description_topic, dict) and description_topic.get('Value'):
+            topic = str(description_topic['Value'])
+            if not topic.startswith('/' + frame_prefix):
+                description_topic['Value'] = '/' + frame_prefix + topic.lstrip('/')
+        if display.get('Class') == 'rviz_default_plugins/RobotModel' and \
+                display.get('TF Prefix', '') != namespace:
+            display['TF Prefix'] = namespace
+
+    handle, adapted_path = tempfile.mkstemp(prefix='dexhand_rviz_', suffix='.rviz')
+    with os.fdopen(handle, 'w') as stream:
+        yaml.safe_dump(config, stream, sort_keys=False)
+    return adapted_path
+
+
+def launch_rviz(context, *args, **kwargs):
+    namespace = context.perform_substitution(LaunchConfiguration('namespace'))
+    config_path = context.perform_substitution(LaunchConfiguration('rviz_config'))
+    if namespace:
+        try:
+            config_path = namespace_rviz_config(config_path, namespace)
+        except Exception as error:  # pylint: disable=broad-except
+            print(f'[description.launch.py] 无法按 namespace 调整 RViz 配置({error})，'
+                  f'将直接使用 {config_path}，需在 RViz 中手动切换 Topic/TF Prefix/Fixed Frame')
+    return [Node(
+        package='rviz2',
+        executable='rviz2',
+        namespace=namespace,
+        output='screen',
+        arguments=['-d', config_path],
+        condition=IfCondition(LaunchConfiguration('use_rviz')),
+    )]
 
 def generate_launch_description():
     ''' 在Rviz中正常展示机器人模型的3个必须节点
@@ -61,15 +124,9 @@ def generate_launch_description():
             ('/joint_states', PythonExpression(['"/joint_states" if "', namespace, '" == "" else "/" + "', namespace, '" + "/joint_states"'])),
         ]
     )
-    # 监听/robot_description 和 /TF topic, 展示机器人模型
-    rviz_node = Node( 
-        package='rviz2',
-        executable='rviz2',
-        namespace=namespace,
-        output='screen',
-        arguments=['-d', LaunchConfiguration('rviz_config')],
-        condition=IfCondition(LaunchConfiguration('use_rviz'))
-    )
+    # 监听/<ns>/robot_description 和 TF topic, 展示机器人模型
+    # namespace 非空时由 launch_rviz 自动适配 rviz 配置(Fixed Frame/Topic/TF Prefix)
+    rviz_node = OpaqueFunction(function=launch_rviz)
     # 监听/robot_description topic, 根据描述发布/joint_states topic
     # Depending on use_jsp parameter, use jsp to publish joint_states(other node
     # such as joint_state_broadcaster in ros2_control can also do pub, but we only need one to do that)

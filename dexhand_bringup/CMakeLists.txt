@@ -13,18 +13,23 @@ find_package(rclcpp_action REQUIRED)
 find_package(control_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(dexhand_interfaces REQUIRED)
+# dexhand_driver 是非 ament_cmake 库，只导出 DEXHAND_DRIVER_* 变量，需手动链接
+find_package(dexhand_driver REQUIRED)
 
 # test
-add_executable(test_pub_dexhand_controller test/test_pub_dexhand_controller.cpp)
-ament_target_dependencies(test_pub_dexhand_controller rclcpp control_msgs)
-add_executable(test_position test/test_position.cpp)
-ament_target_dependencies(test_position
+add_executable(test_gesture_driver test/test_gesture_driver.cpp)
+ament_target_dependencies(test_gesture_driver rclcpp rclcpp_action dexhand_interfaces)
+add_executable(test_ethercat test/test_ethercat.cpp)
+ament_target_dependencies(test_ethercat
   rclcpp
   rclcpp_action
-  control_msgs
+  std_msgs
+  sensor_msgs
+  dexhand_interfaces
 )
 install(
-  TARGETS test_pub_dexhand_controller test_position
+  TARGETS test_gesture_driver test_ethercat
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 # src
@@ -38,6 +43,7 @@ install(
 install(
   DIRECTORY config launch rviz
   DESTINATION share/${PROJECT_NAME}
+  PATTERN "__pycache__" EXCLUDE
 )
 
 if(BUILD_TESTING)

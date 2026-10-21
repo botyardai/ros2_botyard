@@ -2,239 +2,166 @@
 
 ## 概述
 
-本工作空间 `ros2_botyard` 主要用于管理与机器人手部控制相关的 ROS2 包。其中，`dexhand_bringup` 包包含了用于启动和配置机器人手部控制器的配置文件。
+`ros2_botyard` 是用于灵巧手模型描述、ROS 2 硬件接口及控制器集成的工作空间。仓库包含机器人模型、控制器配置、真机启动文件和相关使用示例。
 
-目录结构
+当前发布内容提供 **`gs_s1`（V3）** 的模型与配置。启动参数 `dexhand_type` 中的 `gs_s2` 是预留的型号选择接口；由于未提供对应模型和配置文件，当前不能使用该选项生成模型。
 
-```bash
-.
-└── ros2_botyard
-    ├── dexhand_bringup
-    │   ├── config
-    │   ├── launch
-    │   └── test
-    │
-    ├── dexhand_control
-    │   ├── hardwares
-    │   │   └── dexhand_hardware_interface
-    │   └── controllers
-    │       └── dexhand_controller
-    │
-    └── dexhand_description
-        ├── config
-        ├── launch
-        ├── meshes
-        ├── rviz
-        └── urdf
+本仓库主要包含以下模块：
+
+```text
+ros2_botyard/
+├── dexhand_bringup/                  # 控制器配置、真机启动文件和操作示例
+│   ├── config/
+│   ├── launch/
+│   ├── rviz/
+│   ├── src/
+│   └── test/
+├── dexhand_control/                  # ros2_control 硬件接口和自定义控制器
+│   ├── hardwares/
+│   │   └── dexhand_hardware_interface/
+│   └── controllers/
+│       ├── dexhand_controller/
+│       └── dexhand_joint_controller/
+├── dexhand_description/              # Xacro/URDF、网格、模型参数和模型资产
+│   ├── config/
+│   ├── launch/
+│   ├── meshes/
+│   ├── mjcf/
+│   ├── rviz/
+│   ├── urdf/
+│   └── usd/
+├── dexhand_interfaces/               # 自定义 ROS 2 msg/action 接口
+└── debs/                             # 预编译 dexhand_driver 安装包
 ```
 
-## 环境搭建
+## 环境依赖
 
-### 安装 ros2 Jazzy(ubuntu24.04)
+支持的 ROS 2 环境与仓库内驱动安装包如下：
 
-Set locale
+| ROS 2 | Ubuntu | 驱动安装包 |
+| --- | --- | --- |
+| Jazzy | 24.04（amd64） | `debs/dexhand-driver.deb` |
+| Humble | 22.04（amd64） | `debs/dexhand-driver_humble.deb` |
+
+ROS 2 的安装请参考官方文档：[Jazzy](https://docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debs.html) 或 [Humble](https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debs.html)。
+
+安装构建工具及控制框架相关依赖：
 
 ```bash
-locale  # check for UTF-8
+sudo apt install python3-colcon-common-extensions
 
-sudo apt update && sudo apt install locales
-sudo locale-gen en_US en_US.UTF-8
-sudo update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
-export LANG=en_US.UTF-8
-
-locale  # verify settings
+sudo apt-get install \
+  ros-${ROS_DISTRO}-ros2-control \
+  ros-${ROS_DISTRO}-ros2-controllers \
+  ros-${ROS_DISTRO}-generate-parameter-library \
+  ros-${ROS_DISTRO}-pal-statistics
 ```
 
-install repositories
+其中，[generate_parameter_library](https://github.com/PickNikRobotics/generate_parameter_library) 用于辅助生成参数读取及校验相关代码。运行上述命令前，请确保已加载对应版本的 ROS 2 环境。
+
+## 安装与编译
+
+### 1. 创建工作空间并获取源码
 
 ```bash
-sudo apt install software-properties-common
-sudo add-apt-repository universe
+mkdir -p ~/ros2_ws/src
+cd ~/ros2_ws/src
+git clone <仓库地址> ros2_botyard
 ```
 
-add the ROS 2 GPG key
-```bash
-sudo apt update && sudo apt install curl -y
-sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
-```
-可以在[ipaddress](https://www.ipaddress.com/website/raw.githubusercontent.com/)查看githubusercontent.com的ip地址，并使用命令行更改hosts
-```bash
-sudo tee -a /etc/hosts <<EOF
-185.199.108.133 raw.githubusercontent.com
-EOF
-```
+后续示例均以仓库位于 `~/ros2_ws/src/ros2_botyard` 为前提。
 
-add the repository to your sources list
+### 2. 安装灵巧手驱动
 
-````bash
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
-````
-
-Install ros2 Desktop ROS-Base
+从下面三条命令中，**选择与系统匹配的一条**执行：
 
 ```bash
-sudo apt install ros-jazzy-desktop ros-jazzy-ros-base ros-dev-tools
-```
-
-将此命令添加到 `~/.bashrc` 文件中
-
-```bash
-echo "source /opt/ros/jazzy/setup.bash" >> ~/.bashrc
-source ~/.bashrc
-```
-
-### 依赖安装
-
-#### 安装仓库中自带的灵巧手驱动 dexhand_driver
-
-```bash
-## ROS Jazzy(Ubuntu 24.04)
+# ROS 2 Jazzy / Ubuntu 24.04 / amd64
 sudo apt install ~/ros2_ws/src/ros2_botyard/debs/dexhand-driver.deb
 
-## ROS Humble(Ubuntu 22.04)
+# ROS 2 Humble / Ubuntu 22.04 / amd64
 sudo apt install ~/ros2_ws/src/ros2_botyard/debs/dexhand-driver_humble.deb
-
 ```
 
-#### 控制框架ros2-control
-同时我们使用PickNikRobotic的[参数校验代码生成工具](https://github.com/PickNikRobotics/generate_parameter_library)辅助生成读取Paramerter的代码。
+### 3. 编译并加载工作空间
 
 ```bash
-sudo apt-get install \
-ros-${ROS_DISTRO}-ros2-control \
-ros-${ROS_DISTRO}-ros2-controllers \
-ros-${ROS_DISTRO}-generate-parameter-library \
-ros-${ROS_DISTRO}-pal-statistics
+cd ~/ros2_ws
+colcon build
+source install/setup.bash
 ```
 
-#### 仿真环境Gazebo
-参考[Gazebo官网](https://gazebosim.org/docs/latest/ros_installation/)建议，选择跟ROS版本匹配的。
+如果需要在新终端自动加载环境，可在 `~/.bashrc` 中加入相应配置。例如，Jazzy 环境为：
 
 ```bash
-sudo apt-get update
-sudo apt-get install curl lsb-release gnupg
-
-sudo curl https://packages.osrfoundation.org/gazebo.gpg --output /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg
-
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/gazebo-stable.list > /dev/null
-
-# 选择跟ROS版本匹配的，这里是jazzy
-export GZ_VERSION=harmonic
-
-sudo apt-get install \
-ros-${ROS_DISTRO}-ros-gz \
-ros-${ROS_DISTRO}-ros-gz-sim \
-ros-${ROS_DISTRO}-ros-gz-bridge \
-ros-${ROS_DISTRO}-ros-gz-image \
-ros-${ROS_DISTRO}-ros-gz-interfaces \
-ros-${ROS_DISTRO}-ros-gz-sim-demos \
-# 通过ros2_control框架控制gazebo里的机器人
-ros-${ROS_DISTRO}-gz-ros2-control
-```
-
-#### 运动规划MoveIt2
-
-```bash
-sudo apt-get install \
-ros-${ROS_DISTRO}-moveit \
-ros-${ROS_DISTRO}-moveit-planners-chomp \
-ros-${ROS_DISTRO}-moveit-visual-tools \
-ros-${ROS_DISTRO}-rviz-visual-tools \
-ros-${ROS_DISTRO}-pick-ik
-```
-
-## 源码编译
-
-首先请先阅读[ROS官方文档](https://docs.ros.org/en/jazzy/Tutorials/Beginner-Client-Libraries/Creating-A-Workspace/Creating-A-Workspace.html)，创建好工作空间。
-
-```bash
-# 将仓库clone到你的ROS工作空间src/目录下
-cd ~/ros2_ws/src
-git clone git@gitee.com:Botyard/ros2_botyard.git
-
-# 跳转到工作空间目录编译下载的pkg
-cd ~/ros2_ws/ && colcon build
-
-# 首次编译的pkg需要source一下才能使用
-source install/setup.sh
-
-```
-
-### 添加环境变量
-
-打开.bashrc文件
-
-```bash
-vim ~/.bashrc
-```
-
-在最后添加下面内容
-
-```bash
-# ros jazzy
 source /opt/ros/jazzy/setup.bash
-# pkgs build from source
 source ~/ros2_ws/install/setup.bash
+```
 
-# for rosdep see: https://mirrors4.tuna.tsinghua.edu.cn/help/rosdistro/
+使用 Humble 时，将第一行的 `jazzy` 改为 `humble`。修改后重新打开终端，或执行 `source ~/.bashrc`。
+
+如需配置 rosdep 的清华镜像，可按需设置：
+
+```bash
 export ROSDISTRO_INDEX_URL=https://mirrors.tuna.tsinghua.edu.cn/rosdistro/index-v4.yaml
-
-# gazebo use GPU
-export LIBGL_ALWAYS_SOFTWARE=0
-export GZ_VERSION=harmonic
-# 让gazebo能够找到模型的mesh文件
-export GZ_SIM_RESOURCE_PATH=/opt/ros/jazzy/share/:~/ros2_ws/install/dexhand_description/share/:~/ros2_ws/install/ur_description/share/
 ```
 
-更新环境变量或者重开终端
+### 4. 配置串口设备规则（真机使用）
+
+仓库提供 `dexhand_description/config/99-botyard.rules`，用于配置灵巧手设备节点及访问规则：
 
 ```bash
-source ~/.bashrc
-```
-
-## 添加udev规则
-
-为避免每次插入灵巧手时都要确定设备/dev/ttyXXX和权限问题，可以将`dexhand_description/config/99-botyard.rules`添加到系统中。
-
-```bash
-sudo cp dexhand_description/config/99-botyard.rules /etc/udev/rules.d/
-
+sudo cp ~/ros2_ws/src/ros2_botyard/dexhand_description/config/99-botyard.rules /etc/udev/rules.d/
 sudo udevadm control --reload-rules
 sudo udevadm trigger
-
 ```
 
-## 获取sdf文件
+## 快速开始
+
+完成安装与编译后，在已加载工作空间环境的终端中使用以下命令。
+
+### RViz 模型预览
+
+如尚未安装关节状态发布器，可先安装对应 ROS 2 软件包：
 
 ```bash
-# xcaro文件转 urdf
-xacro dexhand.urdf.xacro > dexhand.urdf
-# 导出右手模型
-xacro use_left_hand:=false ./dexhand.urdf.xacro > dexhand_rh.urdf
-
-# urdf 文件转 sdf
-gz sdf -p dexhand.urdf > dexhand.sdf
+sudo apt-get install ros-${ROS_DISTRO}-joint-state-*
 ```
 
-## 运行
+启动带关节滑动条的模型预览：
 
-### rviz显示
-
-下载关节发布器
-```bash
- sudo apt-get install ros-${ROS_DISTRO}-joint-state-*
-```
-启动rviz
 ```bash
 ros2 launch dexhand_description play.launch.py
 ```
 
-### Gazebo仿真
+模型参数、右手显示、双手模型及 URDF 生成方法见 [dexhand_description/README.md](dexhand_description/README.md)。
+
+### 真机启动
+
+在驱动安装、设备连接及串口规则配置完成后，启动默认控制器：
 
 ```bash
-# dexhand模型
-ros2 launch dexhand_description gazebo.launch.py
-
-# 集成后的双手模型
-ros2 launch dexhand_description gazebo.launch.py urdf_path:=urdf/two_dexhand_as_whole.urdf.xacro use_rviz:=true
+ros2 launch dexhand_bringup hw_dexhand_controller.launch.py
 ```
+
+默认以 `gs_s1` 模型启动，使用串口（RS485）连接，默认设备路径为 `/dev/dexhand`。控制链路涉及 `dexhand_controller`、`dexhand_hardware_interface` 和 `dexhand_driver`。
+
+指定设备端口、通过 EtherCAT 连接、发送关节目标、执行手势或读取触觉反馈等操作，请参阅 [dexhand_bringup/README.md](dexhand_bringup/README.md)。发送动作指令前应确认设备已正确连接、关节运动空间无遮挡。
+
+## 其他模型资产
+
+本仓库还包含 `gs_s1` 对应的模型资产：
+
+| 格式 / 平台 | 仓库位置 |
+| --- | --- |
+| MuJoCo（MJCF） | `dexhand_description/mjcf/gs_s1/` |
+| Isaac Sim（USD） | `dexhand_description/usd/isaac_dexhand/` |
+
+## 相关文档
+
+| 文档 | 内容 |
+| --- | --- |
+| [dexhand_bringup/README.md](dexhand_bringup/README.md) | 真机启动、控制模式、手势 Action、触觉反馈与双手控制 |
+| [dexhand_bringup/README_Ethercat.md](dexhand_bringup/README_Ethercat.md) | EtherCAT 连接及相关配置 |
+| [dexhand_control/README.md](dexhand_control/README.md) | 硬件接口与自定义控制器的模块说明 |
+| [dexhand_description/README.md](dexhand_description/README.md) | 模型结构、Xacro 参数、URDF 生成与预览 |

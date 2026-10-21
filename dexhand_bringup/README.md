@@ -1,118 +1,83 @@
-# Introduction 
+# dexhand_bringup
 
-提供一些综合的launch启动文件。比如moveit -> ros2_control -> 真机/仿真
+## 概述
 
-## 控制仿真
+`dexhand_bringup` 提供灵巧手的综合 launch 文件、控制器配置和操作示例，用于将 `ros2_control` 与真机控制、RViz 预览连接起来。
 
-基于Gazebo做仿真的相关控制, launch文件都以`gz_`前缀打头。
+本页依次介绍型号选择、真机启动、控制器指令、手势与触觉、双手控制。完整的 EtherCAT 配置及验证说明请参阅 [README_Ethercat.md](README_Ethercat.md)。
 
-## ros_gz_bridge透传
+## 型号选择
 
-直接经bridge打通ROS和Gazebo的数据通道。在gazebo侧借助官方插件将关节状态发布到/joint_states.
+启动参数 `dexhand_type` 用于选择模型：
 
-``` bash
-# 使用Gazebo仿真(有阻尼/摩檫力等物理特性了)
-$ ros2 launch dexhand_bringup gz_bridge.launch.py
+- `gs_s1`：V3，当前默认型号；不指定 `dexhand_type` 时使用该型号。
+- `gs_s2`：预留选择接口；当前没有对应的模型与配置资源，无法使用该选项生成模型。
 
-# 直接在gazebo中设置关节位置
-$ gz topic -t /joint_position_cmd -m gz.msgs.Double -p 'data: 1.2'
+## 控制器概览
 
-# 或者通过ros_gz_bridge将ros指令桥接到gazebo世界中
-$ ros2 topic pub /joint_position_cmd std_msgs/msg/Float64 "data: 1.2" -s -1
-```
+| 控制器 | 功能 | 主要启动入口 |
+| --- | --- | --- |
+| `dexhand_controller` | 处理关节位置、速度、力矩及指尖力相关控制指令；默认控制器 | `hw_dexhand_controller.launch.py` |
+| `dexhand_joint_controller` | 联合控制关节位置、速度和力矩 | `hw_dexhand_joint_controller.launch.py` |
+| `position_controller` | 使用 ros2_control 的位置控制器，接收关节位置目标 | `hw_position_controller.launch.py` |
 
-## 接入ros2_control
+以下示例的目标关节顺序以相应的 `config/*.yaml` 为准。向真机发送非零目标前，请确认实际关节限位、设备状态和运动空间。
 
-在整个控制流程中引入ros2_control框架，借助其官方的gz_ros2_control插件，实现对Gazebo世界里的灵巧手仿真控制。
-我们借助框架提供的position_controller，它接收topic的指令，将其转换成灵巧手各个关节的目标位置。
+## 真机启动
 
-``` bash
-$ ros2 launch dexhand_bringup gz_position_controller.launch.py
+### 默认串口连接
 
-# 给位置controller发送控制指令
-$ ros2 topic pub --once /dexhand_position_controller/commands std_msgs/msg/Float64MultiArray "{
-  layout: {dim: [{label: 'joints', size: 18, stride: 1}, {label: 'interface', size: 1, stride: 1}]},
-  data: [
-    0.2618, 0.0,                    # FAJ3, FAJ1 (15°, 0°)
-    0.2618, 0.2618, 0.7854, 0.7854, # THJ4-1 (15°, 15°, 45°, 45°)
-    0.0, 0.5236, 1.0472,            # FFJ4-2 (0°, 30°, 60°)
-    0.0, 0.5236, 1.0472,            # MFJ4-2 (0°, 30°, 60°)
-    0.0, 0.5236, 1.0472,            # RFJ4-2 (0°, 30°, 60°)
-    0.0, 0.5236, 1.0472,            # LFJ4-2 (0°, 30°, 60°)
-  ]
-}"
-
-```
-
-## 接入MoveIt
-
-使用moveit作为运动规划器，给定目标点位，生成关节轨迹（joint trajectory），再借助ros2_control的joint_trajectory_controller实现对灵巧手运动的精细控制。
-
-``` bash
-$ ros2 launch dexhand_bringup gz_moveit.launch.py
-
-# 给自定义controller发送控制指令
-# 在Rviz中左侧有Motion Planning插件，可以选择目标点位。
-```
-
-## 通过桌面APP与灵巧手互动(target following)
-
-在桌面APP上，选择`3D模型`菜单，进入一个3D空间。在这里可以选择一个目标点，经过后台控制器的解算，让灵巧手抓取这个点。
-
-### 安装依赖: rosbridge
-
-[rosbridge_suite](https://github.com/RobotWebTools/rosbridge_suite)是一个用于在ROS和Web之间进行通信的工具。它允许你在ROS2节点和浏览器之间传递消息，从而实现前端APP与机器人的交互。
+默认使用 `gs_s1` 模型，通过串口（RS485）连接设备：
 
 ```bash
-
-$ sudo apt-get install ros-${ROS_DISTRO}-rosbridge-suite
-
+ros2 launch dexhand_bringup hw_dexhand_controller.launch.py
 ```
 
-### 启动ROS后台服务与桌面APP交互
+### 指定串口设备
+
+例如使用 `/dev/ttyACM0`：
 
 ```bash
-# 基于Gazebo仿真
-$ ros2 launch dexhand_bringup gz_target_following.launch.py
-
-# 基于真机
-$ ros2 launch dexhand_bringup hw_target_following.launch.py
+ros2 launch dexhand_bringup hw_dexhand_controller.launch.py xacro_args:=' use_ros2_control:=true use_mock_dexhand:=false port_name:=/dev/ttyACM0'
 ```
 
-这里launch文件会启动rosbridge_server服务默认在后台监听`9090`端口，等待桌面juexian-app下发目标点位。
+### EtherCAT 连接
 
-打开桌面Juexian-APP, `WebSocket`方式连接。进入3D模型界面，点击`订阅关节状态`，就可以接收后台传递回来的机器人状态信息，进行动画展示。
+不指定网卡时，驱动按现有配置自动探测：
 
-如果需要手动启动rosbridge_server, 可以使用如下命令:
 ```bash
-$ ros2 launch rosbridge_server rosbridge_websocket_launch.xml port:=9090
+ros2 launch dexhand_bringup hw_dexhand_controller.launch.py xacro_args:=' use_ros2_control:=true use_mock_dexhand:=false communicate:=EtherCAT'
 ```
 
+需要指定网卡时，可先用 `ip -br link` 查询网卡名称，再设置 `port_name`：
 
-## dexhand_controller(推荐/默认控制器)
+```bash
+ros2 launch dexhand_bringup hw_dexhand_controller.launch.py xacro_args:=' use_ros2_control:=true use_mock_dexhand:=false communicate:=EtherCAT port_name:=enp3s0'
+```
 
-实现对指尖力(tactiles)、关节的位置/速度/力矩的统一控制，驱动灵巧手运动和抓握。
+`communicate:=EtherCAT` 选择 EtherCAT 后端，此时 `port_name` 表示**网卡名称**，不是 `/dev/tty*` 串口路径。网卡选择、权限及连接配置详见 [README_Ethercat.md](README_Ethercat.md)。
 
-``` bash
-# 选项1：真机测试
-$ ros2 launch dexhand_bringup hw_dexhand_controller.launch.py
-# 选项2：指定端口号为/dev/ttyACM0
-$ ros2 launch dexhand_bringup hw_dexhand_controller.launch.py xacro_args:=' use_ros2_control:=true use_gazebo:=false use_mock_dexhand:=false port_name:=/dev/ttyACM0'
+## dexhand_controller（默认控制器）
 
+`dexhand_controller` 用于处理关节及指尖力相关的控制命令。启动该控制器后，通过 `/dexhand_controller/commands` 发送 `std_msgs/msg/Float64MultiArray` 指令。
 
-# 通过如下指令给dexhand_controller发送控制指令(只允许指定主动关节的位置, 共18个关节数据)
-# 目标值顺序与dexhand_bringup/config/dexhand_controller.yaml的joints和tactiles配置一致
-# 支持3种控制模式：
-# - position_only: 仅给定关节位置，其余数据使用默认值
-# - position+tactile: 仅给定关节位置和指尖力，其余数据使用默认值
-# - full_command: 完整指令，包括关节位置、速度、力矩和指尖力(精细控制)
-# (注意：
-#    1. effort的值如果小于2000.0, 可能会导致角度运动不到位。所以建议空载情况下，effort值设置为2000.0
-#    2. 指尖力单位为0.01N
-# )
+### 控制模式
 
-## position_only模式示例指令
-$ ros2 topic pub --once /dexhand_controller/commands std_msgs/msg/Float64MultiArray "{
+| 模式 | 指令内容 |
+| --- | --- |
+| `position_only` | 仅包含 18 个主动关节的位置目标，其他数据使用默认值 |
+| `position+tactile` | 包含 18 个关节位置目标与 5 个指尖力目标 |
+| `full_command` | 包含关节位置、速度、力矩及 5 个指尖力目标 |
+
+关节顺序与 `config/dexhand_controller.yaml` 的 `joints` 配置一致；指尖力顺序与其中 `tactiles` 的配置一致，依次为 `THT0`、`FFT0`、`MFT0`、`RFT0`、`LFT0`。原示例中的指尖力以 **0.01 N** 为单位。
+
+对于 `full_command`，以下示例使用的关节三元组格式为「位置（rad）、速度（rad/s）、effort」。其中 effort 的实际使用建议遵循对应驱动及控制器配置；示例在空载条件下采用 `2000.0` 作为常用参考值。
+
+### position_only：关节位置
+
+示例位置指令：
+```bash
+ros2 topic pub --once /dexhand_controller/commands std_msgs/msg/Float64MultiArray "{
   data: [
     0.2618, 0.0,                    # FAJ3, FAJ1 (rad ,  rad)
     0.2618, 0.0618, 0.5236, 0.5236, # THJ4-1
@@ -122,8 +87,11 @@ $ ros2 topic pub --once /dexhand_controller/commands std_msgs/msg/Float64MultiAr
     0.0, 0.5236, 1.0472,            # LFJ4-2 (0°, 30°, 60°)
   ]
 }"
-# 复位
-$ ros2 topic pub --once /dexhand_controller/commands std_msgs/msg/Float64MultiArray "{
+```
+
+复位指令：
+```bash
+ros2 topic pub --once /dexhand_controller/commands std_msgs/msg/Float64MultiArray "{
   data: [
     0.0, 0.0,           # FAJ3, FAJ1 (rad ,  rad)
     0.0, 0.0, 0.0, 0.0, # THJ4-1 (0°, 0°, 0°, 0°)
@@ -133,10 +101,13 @@ $ ros2 topic pub --once /dexhand_controller/commands std_msgs/msg/Float64MultiAr
     0.0, 0.0, 0.0,      # LFJ4-2 (0°, 0°, 0°)
   ]
 }"
+```
 
-## position+tactile模式示例指令
-# (注意：指尖力单位为0.01N)
-$ ros2 topic pub --once /dexhand_controller/commands std_msgs/msg/Float64MultiArray "{
+### position+tactile：关节位置与指尖力
+
+示例位置及指尖力指令（五个指尖力目标在数据末尾）：
+```bash
+ros2 topic pub --once /dexhand_controller/commands std_msgs/msg/Float64MultiArray "{
   data: [
     0.2618, 0.0,                    # FAJ3, FAJ1 (rad ,  rad)
     0.2618, 0.0618, 0.5236, 0.5236, # THJ4-1
@@ -147,8 +118,11 @@ $ ros2 topic pub --once /dexhand_controller/commands std_msgs/msg/Float64MultiAr
     100.0, 100.0, 100.0, 100.0, 100.0,   # THT0, FFT0, MFT0, RFT0, LFT0 ( Unit: 0.01N )
   ]
 }"
-# 复位
-$ ros2 topic pub --once /dexhand_controller/commands std_msgs/msg/Float64MultiArray "{
+```
+
+复位指令：
+```bash
+ros2 topic pub --once /dexhand_controller/commands std_msgs/msg/Float64MultiArray "{
   data: [
     0.0, 0.0,           # FAJ3, FAJ1 (rad ,  rad)
     0.0, 0.0, 0.0, 0.0, # THJ4-1 (0°, 0°, 0°, 0°)
@@ -159,10 +133,13 @@ $ ros2 topic pub --once /dexhand_controller/commands std_msgs/msg/Float64MultiAr
     0.0, 0.0, 0.0, 0.0, 0.0,   # THT0, FFT0, MFT0, RFT0, LFT0 ( Unit: 0.01N )
   ]
 }"
+```
 
-# full_command模式示例指令, 用作精细控制：发送全量指令，包含位置、速度、手指关节力矩 和指尖力
-# (注意：指尖力单位为0.01N)
-$ ros2 topic pub --once /dexhand_controller/commands std_msgs/msg/Float64MultiArray "{
+### full_command：完整控制指令
+
+下列命令采用关节「位置、速度、effort」交错排列，并在末尾添加五个指尖力目标。
+```bash
+ros2 topic pub --once /dexhand_controller/commands std_msgs/msg/Float64MultiArray "{
   data: [
     0.2618, 3.14, 2000.0,  0.0, 0.0, 0.0,                                                     # FAJ3, FAJ1 (rad | rad/s | 0.01N,  rad | rad/s | 0.01N)
     0.2618, 1.0, 2000.0,   0.0618, 1.0, 2000.0,   0.5236, 1.0, 2000.0,  0.5236, 1.0, 2000.0,  # THJ4-1
@@ -173,8 +150,11 @@ $ ros2 topic pub --once /dexhand_controller/commands std_msgs/msg/Float64MultiAr
     100.0, 100.0, 100.0, 100.0, 100.0,   # THT0, FFT0, MFT0, RFT0, LFT0 ( Unit: 0.01N )
   ]
 }"
-# 复位
-$ ros2 topic pub --once /dexhand_controller/commands std_msgs/msg/Float64MultiArray "{
+```
+
+复位指令：
+```bash
+ros2 topic pub --once /dexhand_controller/commands std_msgs/msg/Float64MultiArray "{
   data: [
     0.0, 3.14, 0.0,  0.0, 0.0, 0.0,                                   # FAJ3, FAJ1 (rad | rad/s | 0.01N,  rad | rad/s | 0.01N)
     0.0, 1.0, 0.0,   0.0, 1.0, 0.0,   0.0, 1.0, 0.0,  0.0, 1.0, 0.0,  # THJ4-1 (0°, 0°, 0°, 0°)
@@ -185,9 +165,11 @@ $ ros2 topic pub --once /dexhand_controller/commands std_msgs/msg/Float64MultiAr
     0.0, 0.0, 0.0, 0.0, 0.0,   # THT0, FFT0, MFT0, RFT0, LFT0 ( Unit: 0.01N )
   ]
 }"
+```
 
-# full_command模式: 握拳手势 (注意配置好关节速度，避免手指碰撞造成关节堵转，导致灵巧手损坏)
-$ ros2 topic pub --once /dexhand_controller/commands std_msgs/msg/Float64MultiArray "{
+握拳示例（执行前检查关节限位、速度及负载条件）：
+```bash
+ros2 topic pub --once /dexhand_controller/commands std_msgs/msg/Float64MultiArray "{
   data: [
     0.0, 0.0, 0.0,         0.0, 0.14, 0.0,                                                     # FAJ3, FAJ1 (rad | rad/s | 0.01N,  rad | rad/s | 0.01N)
     -0.4, 0.5, 1000.0,     0.8236, 3.14, 1000.0,   1.1854, 0.5, 2000.0,  0.5236, 0.5, 2000.0,  # THJ4-1
@@ -198,8 +180,11 @@ $ ros2 topic pub --once /dexhand_controller/commands std_msgs/msg/Float64MultiAr
     100.0, 100.0, 100.0, 100.0, 100.0,   # THT0, FFT0, MFT0, RFT0, LFT0 ( Unit: 0.01N )
   ]
 }"
-# 复位 (注意配置好关节速度，避免手指碰撞)
-$ ros2 topic pub --once /dexhand_controller/commands std_msgs/msg/Float64MultiArray "{
+```
+
+握拳后复位示例：
+```bash
+ros2 topic pub --once /dexhand_controller/commands std_msgs/msg/Float64MultiArray "{
   data: [
     0.0, 0.0, 0.0,     0.0, 3.14, 2000.0,                                          # FAJ3, FAJ1 (rad | rad/s | 0.01N,  rad | rad/s | 0.01N)
     0.0, 1.0, 2000.0,  0.0, 1.0, 2000.0,   0.0, 3.14, 2000.0,  0.0, 3.14, 2000.0,  # THJ4-1 (0°, 0°, 0°, 0°)
@@ -210,32 +195,68 @@ $ ros2 topic pub --once /dexhand_controller/commands std_msgs/msg/Float64MultiAr
     0.0, 0.0, 0.0, 0.0, 0.0,   # THT0, FFT0, MFT0, RFT0, LFT0 ( Unit: 0.01N )
   ]
 }"
-
 ```
 
-dexhand_controller会将指尖触觉(x,y轴切向力和z轴法向力)发送到/dexhand_controller/state/tactiles topic, 消息类型为std_msgs::msg::Float64MultiArray
-目标值顺序与dexhand_bringup/config/dexhand_controller.yaml的tactiles配置一致, 单位为0.01N
+## 手势控制与触觉反馈
+
+### 手势 Action
+
+手势接口为 `dexhand_interfaces/action/DoGesture`，需要连接真机运行；不能在 Mock 模式下执行。手势预设文件为 `/usr/local/share/dexhand_driver/gesture_presets.conf`。
+
+常用手势 ID：
+
+| ID | 动作 | ID | 动作 |
+| --- | --- | --- | --- |
+| `1` | 五指握 | `2` | 四指握 |
+| `3` | 三指握 | `4` | 四指扣握 |
+| `5` | 五指扣握 | `6` | 二指捏合 |
+| `7` | 三指捏合 | `8` | 爪式 |
+| `9` | 夹式 | `10` | 钳式 |
+| `255` | 张开 | | |
+
+在真机控制栈已经启动后，执行以下示例：
 
 ```bash
-$ ros2 topic echo /dexhand_controller/state/tactiles 
+# 五指握
+ros2 action send_goal /dexhand_controller/do/gesture dexhand_interfaces/action/DoGesture "{gesture_id: 1}" --feedback
+
+# 张开
+ros2 action send_goal /dexhand_controller/do/gesture dexhand_interfaces/action/DoGesture "{gesture_id: 255}" --feedback
 ```
 
+Action 接单后反馈 `BUSY(4)`；最终返回成功、失败、超时或取消等执行结果。已有动作在执行或收尾期间，新 goal 会被拒绝。
 
-## dexhand_joint_controller
+- 在 Jazzy 中，可在 `send_goal` 的终端按 `Ctrl+C` 请求取消；C++ 客户端可调用 `async_cancel_goal(goal_handle)`。
+- 取消完成后，Action 返回 `CANCELED`，业务结果为 `CANCELLED(6)`；这表示执行线程已退出，通信异常时不应据此认定机械手已经物理停止。
+- 硬件超时对应 `ABORTED` 和业务结果 `TIMEOUT(3)`。
 
-基于botyard提供的dexhand_joint_controller支持`同时`控制灵巧手关节的`位置、速度和手指关节力矩`三个维度。
+有关完整链路的验证说明，参阅 [README_Ethercat.md](README_Ethercat.md) 中的「手势调用与取消」。
 
-``` bash
-# 选项1：真机测试
-$ ros2 launch dexhand_bringup hw_dexhand_joint_controller.launch.py
+### 指尖触觉反馈
 
-# 选择上述任一选项后，通过如下指令给dexhand_joint_controller发送控制指令(只允许指定主动关节的位置, 共18个关节数据)
-# 同时控制关节位置、速度和力矩, 目标值顺序与dexhand_bringup/config/dexhand_joint_controller.yaml的joints和interface_names配置一致
-# (注意：
-#    1. 需要确认interface_names中*启用*了: position, velocity, effort
-#    2. effort的值如果小于2000.0, 可能会导致角度运动不到位。所以建议空载情况下，effort值设置为2000.0
-# )
-$ ros2 topic pub --once /dexhand_joint_controller/commands std_msgs/msg/Float64MultiArray "{
+`dexhand_controller` 将指尖触觉反馈发布至 `/dexhand_controller/state/tactiles`，消息类型为 `std_msgs/msg/Float64MultiArray`。反馈包括 x、y 方向的切向力及 z 方向的法向力，顺序参见 `config/dexhand_controller.yaml` 的 `tactiles` 配置，单位为 **0.01 N**。
+
+```bash
+ros2 topic echo /dexhand_controller/state/tactiles
+```
+
+## 其他控制器
+
+### ~~dexhand_joint_controller~~
+
+此控制器用于联合下发关节位置、速度与力矩目标，以下保留完整的指令示例。
+
+启动控制器：
+
+```bash
+ros2 launch dexhand_bringup hw_dexhand_joint_controller.launch.py
+```
+
+在 `config/dexhand_joint_controller.yaml` 中，需根据实际控制任务确认 `interface_names` 已启用 `position`、`velocity`、`effort`。以下消息按 18 个关节、每关节 3 个接口组织，使用 `Float64MultiArray` 的 `layout` 说明维度。示例在空载条件下以 `2000.0` 作为 effort 参考值。
+
+位置、速度与力矩示例：
+```bash
+ros2 topic pub --once /dexhand_joint_controller/commands std_msgs/msg/Float64MultiArray "{
   layout: {dim: [{label: 'joints', size: 18, stride: 3}, {label: 'interface', size: 3, stride: 1}]},
   data: [
     0.2618, 3.14, 2000.0,  0.0, 0.0, 0.0,                                                     # FAJ3, FAJ1 (rad | rad/s | 0.01N,  rad | rad/s | 0.01N)
@@ -246,9 +267,11 @@ $ ros2 topic pub --once /dexhand_joint_controller/commands std_msgs/msg/Float64M
     0.0, 0.0, 0.0,         0.5236, 3.14, 2000.0,  1.0472, 3.14, 2000.0,                       # LFJ4-2 (0°, 30°, 60°)
   ]
 }"
+```
 
-# 复位
-$ ros2 topic pub --once /dexhand_joint_controller/commands std_msgs/msg/Float64MultiArray "{
+复位指令：
+```bash
+ros2 topic pub --once /dexhand_joint_controller/commands std_msgs/msg/Float64MultiArray "{
   layout: {dim: [{label: 'joints', size: 18, stride: 3}, {label: 'interface', size: 3, stride: 1}]},
   data: [
     0.0, 0.0, 0.0,  0.0, 0.0, 0.0,                                  # FAJ3, FAJ1 (rad | rad/s | 0.01N, )
@@ -259,9 +282,11 @@ $ ros2 topic pub --once /dexhand_joint_controller/commands std_msgs/msg/Float64M
     0.0, 0.0, 0.0,  0.0, 0.0, 0.0,  0.0, 0.0, 0.0,                  # LFJ4-2 (0°, 0°, 0°)
   ]
 }"
+```
 
-# 握拳手势 (注意配置好关节速度和力矩，避免手指碰撞造成关节堵转，导致灵巧手损坏)
-$ ros2 topic pub --once /dexhand_joint_controller/commands std_msgs/msg/Float64MultiArray "{
+握拳示例（需确认速度、力矩与关节限位）：
+```bash
+ros2 topic pub --once /dexhand_joint_controller/commands std_msgs/msg/Float64MultiArray "{
   layout: {dim: [{label: 'joints', size: 18, stride: 3}, {label: 'interface', size: 3, stride: 1}]},
   data: [
     0.0, 0.0, 0.0,         0.2618, 3.14, 2000.0,                                               # FAJ3, FAJ1 (rad | rad/s | 0.01N,  rad | rad/s | 0.01N)
@@ -272,8 +297,11 @@ $ ros2 topic pub --once /dexhand_joint_controller/commands std_msgs/msg/Float64M
     0.0, 0.0, 0.0,         1.5708, 3.14, 2000.0,   1.5708, 3.14, 2000.0,                       # LFJ4-2 (0°, 90°, 90°)
   ]
 }"
-# 复位 (注意配置好关节速度，避免手指碰撞)
-$ ros2 topic pub --once /dexhand_joint_controller/commands std_msgs/msg/Float64MultiArray "{
+```
+
+握拳后复位示例：
+```bash
+ros2 topic pub --once /dexhand_joint_controller/commands std_msgs/msg/Float64MultiArray "{
   layout: {dim: [{label: 'joints', size: 18, stride: 3}, {label: 'interface', size: 3, stride: 1}]},
   data: [
     0.0, 0.0, 0.0,   0.0, 3.14, 0.0,                                    # FAJ3, FAJ1 (rad | rad/s | 0.01N,  rad | rad/s | 0.01N)
@@ -284,32 +312,35 @@ $ ros2 topic pub --once /dexhand_joint_controller/commands std_msgs/msg/Float64M
     0.0, 3.14, 0.0,  0.0, 3.14, 0.0,  0.0, 3.14, 0.0,                   # LFJ4-2 (0°, 0°, 0°)
   ]
 }"
-
 ```
 
-## position_controller(不建议在真机上使用，但可以用作仿真简单的测试)
+### position_controller
 
-基于ros2_control提供的[位置控制器](https://control.ros.org/jazzy/doc/ros2_controllers/position_controllers/doc/userdoc.html#position-controllers-userdoc)直接控制灵巧手关节。
+此控制器采用 [ros2_control 的位置控制器](https://control.ros.org/jazzy/doc/ros2_controllers/position_controllers/doc/userdoc.html#position-controllers-userdoc)，接收关节位置命令。主要用于模型预览和简化控制测试，不推荐作为真机的默认控制方式。
 
-``` bash
-# 选项1：仿真调试
-$ ros2 launch dexhand_bringup gz_position_controller.launch.py
+通过 RViz 展示关节位置指令：
 
-# 选项2：将下发的关节位置指令直接在rviz做动画展示
-# 注意在Rviz的RobotModel中切换topic为: /parallel/dexhand/robot_description，同时将TF_Prefix设置为: parallel/dexhand
-# 最后再将Global Option中的Fixed Frame设置为: parallel/dexhand/world
-# （此时RViz上的报错可暂时忽略）
-$ ros2 launch dexhand_bringup parallel_cmd_to_joint_state.launch.py
+```bash
+ros2 launch dexhand_bringup parallel_cmd_to_joint_state.launch.py
+```
 
-# 选项3：真机测试, 由遥操手套捕获手的关节角度变化，下发到position_controller
-$ ros2 launch dexhand_bringup hw_position_controller.launch.py
-# 启用namespace，并使用右手，指定灵巧手的串口号
-$ ros2 launch dexhand_bringup hw_position_controller.launch.py namespace:=my_dexhand xacro_args:='use_ros2_control:=true use_gazebo:=false use_mock_dexhand:=false use_left_hand:=false port_name:=/dev/ttyACM0'
+真机启动入口：
 
-# 选择上述任一选项后，通过如下指令给position_controller发送控制指令(只允许指定主动关节的位置, 共18个关节数据)
-# 这里的目标值顺序与该controller配置文件的joints关节配置项保持一致
-# 只控制关节位置, 目标值顺序与dexhand_bringup/config/dexhand_position_controller.yaml的joints配置一致
-$ ros2 topic pub --once /dexhand_position_controller/commands std_msgs/msg/Float64MultiArray "{
+```bash
+ros2 launch dexhand_bringup hw_position_controller.launch.py
+```
+
+需要命名空间、右手模型及指定串口时：
+
+```bash
+ros2 launch dexhand_bringup hw_position_controller.launch.py namespace:=my_dexhand xacro_args:='use_ros2_control:=true use_mock_dexhand:=false use_left_hand:=false port_name:=/dev/ttyACM0'
+```
+
+消息发布至 `/dexhand_position_controller/commands`，类型为 `std_msgs/msg/Float64MultiArray`；数据顺序按 `config/dexhand_position_controller.yaml` 的 `joints` 配置确定。
+
+关节位置示例：
+```bash
+ros2 topic pub --once /dexhand_position_controller/commands std_msgs/msg/Float64MultiArray "{
   layout: {dim: [{label: 'joints', size: 18, stride: 1}, {label: 'interface', size: 1, stride: 1}]},
   data: [
     0.2618, 0.0,                    # FAJ3, FAJ1 (15°, 0°)
@@ -320,9 +351,11 @@ $ ros2 topic pub --once /dexhand_position_controller/commands std_msgs/msg/Float
     0.0, 0.5236, 1.0472,            # LFJ4-2 (0°, 30°, 60°)
   ]
 }"
+```
 
-# 复位
-$ ros2 topic pub --once /dexhand_position_controller/commands std_msgs/msg/Float64MultiArray "{
+复位示例：
+```bash
+ros2 topic pub --once /dexhand_position_controller/commands std_msgs/msg/Float64MultiArray "{
   layout: {dim: [{label: 'joints', size: 18, stride: 1}, {label: 'interface', size: 1, stride: 1}]},
   data: [
     0.0, 0.0,            # FAJ3, FAJ1 (0°, 0°)
@@ -333,24 +366,22 @@ $ ros2 topic pub --once /dexhand_position_controller/commands std_msgs/msg/Float
     0.0, 0.0, 0.0,       # LFJ4-2 (0°)
   ]
 }"
-
 ```
 
+使用 `parallel_cmd_to_joint_state.launch.py` 时，默认命名空间为 `parallel/dexhand`。当命名空间非空时，`description.launch.py` 会相应调整 RViz 的 Fixed Frame、RobotModel Description Topic 和 TF Prefix；如需自定义显示，可在 RViz 中检查这些配置。
 
-### 通过遥操手套与灵巧手互动(tele operation)
+## 双手控制
 
-真机测试, 由遥操手套捕获手的finger_tip pose，下发到/dexhand/multi_target_following topic, 后台bio_ik解算关节角度。
-
-```bash
-# 基于真机
-$ ros2 launch dexhand_bringup hw_tele_operation.launch.py
-```
-
-### 在同一个URDF文件里集成2只灵巧手, 但分别独立的控制它们
+在同一个 URDF 中组合两只灵巧手，同时保持各自的控制入口：
 
 ```bash
-
 ros2 launch dexhand_bringup hw_position_controller_two_dexhand.launch.py namespace:=two_dexhand lh_port_name:=/dev/ttyACM1 rh_port_name:=/dev/ttyACM0
-
 ```
-这里的`lh_port_name`和`rh_port_name`参数分别指定了左右手的串口号。
+
+`lh_port_name` 和 `rh_port_name` 分别指定左手、右手的串口设备。
+
+若两只手均使用 EtherCAT，可采用**两块网卡、两个终端、两个独立命名空间**的方式分别启动控制实例。具体网卡设置和使用约束见 [README_Ethercat.md](README_Ethercat.md) 中「从站识别依据」一节。
+
+## EtherCAT 详细说明
+
+使用 `communicate:=EtherCAT` 时，`ros2_control_node` 中的 `DexhandHardwareInterface` 负责设备连接，应用层通过 ROS 接口交互。关于网卡选择、链路参数、权限、启动和恢复方式，以及手势链路验证，请统一参阅 [README_Ethercat.md](README_Ethercat.md)。

@@ -11,8 +11,11 @@
 
   <depend>rclcpp</depend>
   <depend>control_msgs</depend>
-  <build_depend>rclcpp_action</build_depend>
+  <depend>dexhand_interfaces</depend>
+  <depend>rclcpp_action</depend>
+  <exec_depend>dexhand_controller</exec_depend>
   <exec_depend>dexhand_description</exec_depend>
+  <exec_depend>dexhand_hardware_interface</exec_depend>
 
   <exec_depend>controller_manager</exec_depend>
 

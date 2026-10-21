@@ -3,23 +3,29 @@
 
     <xacro:arg name="use_left_hand" default="true" />
     <xacro:arg name="prefix" default=""/>
+    <xacro:arg name="dexhand_type" default="gs_s1" />
 
     <xacro:arg name="use_ros2_control" default="true" />
     <xacro:arg name="use_gazebo" default="false" />
     <xacro:arg name="use_mock_dexhand" default="false" />
     <xacro:arg name="port_name" default="/dev/dexhand" />
+    <xacro:arg name="communicate" default="RS485" />
+    <xacro:arg name="gesture_timeout_ms" default="5000" />
 
 <!-- construct pure URDF start -->
     <xacro:include filename="$(find dexhand_description)/urdf/dexhand_single_macro.xacro"/>
     <!-- create link fixed to the "world" -->
     <link name="world"/>
     <!-- dexhand -->
-    <xacro:dexhand_single_macro use_left_hand="$(arg use_left_hand)"
+    <xacro:dexhand_single_macro dexhand_type="$(arg dexhand_type)"
+                                use_left_hand="$(arg use_left_hand)"
                                 use_ros2_control="$(arg use_ros2_control)"
                                 use_gazebo="$(arg use_gazebo)"
                                 use_mock_dexhand="$(arg use_mock_dexhand)"
                                 prefix="$(arg prefix)"
                                 port_name="$(arg port_name)"
+                                communicate="$(arg communicate)"
+                                gesture_timeout_ms="$(arg gesture_timeout_ms)"
                                 parent_link="world"
                                 joint_type="fixed">
         <origin xyz="0 0 0" rpy="0 0 0" />

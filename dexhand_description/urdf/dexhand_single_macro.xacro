@@ -3,13 +3,15 @@
 
     <!-- 定义全局参数 -->
     <xacro:arg name="dexhand_initial_positions_file" default="$(find dexhand_description)/config/initial_positions.yaml" />
-    <xacro:arg name="dexhand_joint_limits_file" default="$(find dexhand_description)/config/joint_limits.yaml" />
+    <xacro:arg name="dexhand_joint_limits_file" default="" />
     <xacro:arg name="dexhand_link_configs_file" default="$(find dexhand_description)/config/link_configs.yaml" />
     <!-- Import materials used in urdf -->
     <xacro:include filename="$(find dexhand_description)/urdf/inc/common.materials.xacro"/>
 
     <!-- dexhand_single_macro 单只手的macro -->
-    <xacro:macro name="dexhand_single_macro" params="use_left_hand use_ros2_control:=false use_gazebo:=false use_mock_dexhand:=false prefix:='' port_name:=/dev/dexhand parent_link joint_type *origin">
+    <xacro:macro name="dexhand_single_macro" params="use_left_hand use_ros2_control:=false use_gazebo:=false use_mock_dexhand:=false prefix:='' port_name:=/dev/dexhand communicate:=RS485 gesture_timeout_ms:=5000 parent_link joint_type dexhand_type:='gs_s1' *origin">
+        <!-- 显式文件优先；未指定时使用本次宏调用所选版本的限位。 -->
+        <xacro:property name="joint_limits_file" value="${xacro.arg('dexhand_joint_limits_file') or '$(find dexhand_description)/config/' + dexhand_type + '/joint_limits.yaml'}" />
         <!-- Constants for robot description -->
         <xacro:property name="joint_pi2" value="1.5708"/>
         <xacro:property name="joint_pi2_" value="-1.5708"/>
@@ -19,7 +21,7 @@
 
         <!-- construct pure URDF start -->
         <xacro:include filename="$(find dexhand_description)/urdf/dexhand_macro.xacro"/>
-        <xacro:dexhand_macro use_left_hand="${use_left_hand}" prefix="${prefix}" parent_link="${parent_link}" joint_type="${joint_type}">
+        <xacro:dexhand_macro use_left_hand="${use_left_hand}" prefix="${prefix}" parent_link="${parent_link}" joint_type="${joint_type}" dexhand_type="${dexhand_type}">
             <xacro:insert_block name="origin"/>
         </xacro:dexhand_macro>
         <!-- construct pure URDF end -->
@@ -33,8 +35,10 @@
                 use_gazebo="${use_gazebo}"
                 use_mock_dexhand="${use_mock_dexhand}"
                 initial_positions_file="$(arg dexhand_initial_positions_file)"
-                joint_limits_file="$(arg dexhand_joint_limits_file)"
+                joint_limits_file="${joint_limits_file}"
                 port_name="${port_name}"
+                communicate="${communicate}"
+                gesture_timeout_ms="${gesture_timeout_ms}"
                 prefix="${prefix_list}"
             />
         </xacro:if>
@@ -44,12 +48,12 @@
             <xacro:include filename="$(find dexhand_description)/config/dexhand.gazebo.xacro"/>
             <xacro:dexhand_gazebo_attribute
                 link_configs_file="$(arg dexhand_link_configs_file)"
-                joint_limits_file="$(arg dexhand_joint_limits_file)"
+                joint_limits_file="${joint_limits_file}"
                 prefix="${prefix_list}"
             />
             <xacro:dexhand_gazebo_plugin
                 use_ros2_control="${use_ros2_control}"
-                joint_limits_file="$(arg dexhand_joint_limits_file)"
+                joint_limits_file="${joint_limits_file}"
                 prefix="${prefix_list}"
             />
         </xacro:if>

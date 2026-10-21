@@ -3,6 +3,9 @@
   dexhand_controller:
     ros__parameters:
       use_sim_time: false
+      gesture_gpio: do_gesture
+      # 需大于 hardware 的 gesture_timeout_ms（默认 5000）
+      gesture_result_timeout_ms: 10000
       joints:
         - FAJ3
         - FAJ1
