@@ -9,7 +9,7 @@
     <xacro:include filename="$(find dexhand_description)/urdf/inc/common.materials.xacro"/>
 
     <!-- dexhand_single_macro 单只手的macro -->
-    <xacro:macro name="dexhand_single_macro" params="use_left_hand use_ros2_control:=false use_gazebo:=false use_mock_dexhand:=false prefix:='' port_name:=/dev/dexhand communicate:=RS485 gesture_timeout_ms:=5000 parent_link joint_type dexhand_type:='gs_s1' *origin">
+    <xacro:macro name="dexhand_single_macro" params="use_left_hand use_ros2_control:=false use_gazebo:=false use_mock_dexhand:=false prefix:='' port_name:=/dev/dexhand communicate:=RS485 gesture_timeout_ms:=5000 debug:=false parent_link joint_type dexhand_type:='gs_s1' *origin">
         <!-- 显式文件优先；未指定时使用本次宏调用所选版本的限位。 -->
         <xacro:property name="joint_limits_file" value="${xacro.arg('dexhand_joint_limits_file') or '$(find dexhand_description)/config/' + dexhand_type + '/joint_limits.yaml'}" />
         <!-- Constants for robot description -->
@@ -39,6 +39,7 @@
                 port_name="${port_name}"
                 communicate="${communicate}"
                 gesture_timeout_ms="${gesture_timeout_ms}"
+                debug="${debug}"
                 prefix="${prefix_list}"
             />
         </xacro:if>

@@ -200,8 +200,8 @@ CallbackReturn DexhandHardwareInterface::on_configure(const rclcpp_lifecycle::St
 
 // io_thread_func
 // 因为灵巧手的控制频率太低，所以我们设计了一个中转/缓存的机制，保证不阻塞ros2_control的loop
+// 注：不再对 io_thread 施加频率控制（与 dev 分支 c70b497 一致）；节拍由串口/总线往返耗时决定。
 void DexhandHardwareInterface::io_thread_func() {
-    rclcpp::Rate rate(10.0);  // 10Hz
     while (rt_buffers_.io_thread_running) {
         // 1. 读取命令buffer，下发到灵巧手
         auto cmd_ptr = rt_buffers_.command_buffer.readFromRT();
@@ -222,7 +222,6 @@ void DexhandHardwareInterface::io_thread_func() {
         } else {
             rt_buffers_.state_buffer.writeFromNonRT(stateData);
         }
-        rate.sleep();
     }
 }
 

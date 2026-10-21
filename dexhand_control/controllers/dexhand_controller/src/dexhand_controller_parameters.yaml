@@ -24,3 +24,8 @@ dexhand_controller:
     default_value: 10000,
     description: "Max time to wait for a terminal gesture result before the action is aborted with TIMEOUT; must be greater than the hardware gesture_timeout_ms",
   }
+  hand_info_topic: {
+    type: string,
+    default_value: "hand_info",
+    description: "Topic on which the hardware layer publishes HandInfo (series/version); must match the hardware hand_info_topic. Use a relative name so it follows the node namespace and multiple hands stay isolated (e.g. /lh/hand_info, /rh/hand_info).",
+  }

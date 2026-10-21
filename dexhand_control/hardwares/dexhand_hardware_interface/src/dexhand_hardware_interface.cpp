@@ -20,6 +20,8 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -37,11 +39,6 @@ namespace {
 
 using dexhand_interfaces::DexhandMode;
 using dexhand_interfaces::GestureResult;
-
-// getDofsAndTactiles 连续失败超过该时长，视为 driver 已无法自愈：退出 io_thread 交给 watchdog
-// 重建。取值需远大于 driver 层 runCyclic 的恢复窗口（当前 3 s 窗口 + 500 ms 退避），
-// 给 driver 留足自愈时间，超时后才兜底重建。
-constexpr auto kCommLostTimeout = std::chrono::seconds(15);
 
 std::string strip_prefix(const std::string& name, const std::string& prefix) {
     if (!prefix.empty() && name.compare(0, prefix.size(), prefix) == 0) {
@@ -65,11 +62,66 @@ struct GestureExecution
     uint8_t acknowledgement_cycles_remaining = 0;
     std::chrono::steady_clock::time_point deadline{};
     GestureResult stop_result = GestureResult::FAILURE;
-    // 故障重连后起步的 COMPLETED：预置的终态要等 controller 把 gesture_id 写回 0
-    // （表示它已读走该终态）才复位，否则 cancel 路径下会提前收到 IDLE。
-    bool awaiting_ack = false;
     std::uint64_t command_sequence = 0;
 };
+
+// 诊断日志用的枚举/状态文本，把数值翻译成可读含义。
+const char * phase_name(GesturePhase phase)
+{
+    switch (phase) {
+        case GesturePhase::IDLE: return "IDLE";
+        case GesturePhase::ACKNOWLEDGED: return "ACKNOWLEDGED";
+        case GesturePhase::RUNNING: return "RUNNING";
+        case GesturePhase::COMPLETED: return "COMPLETED";
+        case GesturePhase::DRAINING: return "DRAINING";
+    }
+    return "UNKNOWN";
+}
+
+const char * driver_result_name(dexhand_driver::GestureResult result)
+{
+    using DriverResult = dexhand_driver::GestureResult;
+    switch (result) {
+        case DriverResult::IDLE: return "IDLE";
+        case DriverResult::SUCCESS: return "SUCCESS";
+        case DriverResult::FAILURE: return "FAILURE";
+        case DriverResult::BUSY: return "BUSY";
+        case DriverResult::CANCELLED: return "CANCELLED";
+    }
+    return "UNKNOWN";
+}
+
+const char * stop_reason_name(dexhand_driver::GestureStopReason reason)
+{
+    using StopReason = dexhand_driver::GestureStopReason;
+    switch (reason) {
+        case StopReason::NONE: return "NONE";
+        case StopReason::TIMEOUT: return "TIMEOUT";
+        case StopReason::DISCONNECT: return "DISCONNECT";
+        case StopReason::SHUTDOWN: return "SHUTDOWN";
+        case StopReason::CALLER_REQUEST: return "CALLER_REQUEST";
+    }
+    return "UNKNOWN";
+}
+
+const char * mode_name(DexhandMode mode)
+{
+    switch (mode) {
+        case DexhandMode::TOPIC: return "TOPIC";
+        case DexhandMode::GESTURE: return "GESTURE";
+    }
+    return "UNKNOWN";
+}
+
+const char * connected_name(bool connected)
+{
+    return connected ? "CONNECTED" : "DISCONNECTED";
+}
+
+const char * comm_failing_name(bool failing)
+{
+    return failing ? "FAILING" : "OK";
+}
 
 GestureResult gesture_result(const dexhand_driver::GestureStatus& status)
 {
@@ -175,12 +227,9 @@ std::optional<GestureResult> step_gesture(
         }
 
         case GesturePhase::COMPLETED:
-            // 终态保持到 controller 切回 TOPIC 后才复位。故障重连后起步的 COMPLETED 还要等
-            // gesture_id 归零（controller 读走终态后才会这样写），否则 cancel 路径下会提前
-            // 复位成 IDLE，让 controller 只能等自己的 deadline。
+            // 终态保持到 controller 切回 TOPIC（并读到终态）后才复位为 IDLE。
             if (command.mode == DexhandMode::TOPIC &&
-                command.synchronized_gesture_sequence >= execution.command_sequence &&
-                (!execution.awaiting_ack || command.gesture_id == 0))
+                command.synchronized_gesture_sequence >= execution.command_sequence)
             {
                 execution = GestureExecution{};
                 return GestureResult::IDLE;
@@ -212,6 +261,10 @@ CallbackReturn DexhandHardwareInterface::on_init(const hardware_interface::Hardw
     executor_ = params.executor;
     joint_prefix = info_.hardware_parameters["joint_prefix"];
     communicate_ = info_.hardware_parameters["communicate"];
+    // 设备身份 bridge topic：用相对名跟随节点 namespace 自动隔离（多手互不冲突）；未配置时按前缀推导。
+    const auto hand_info_topic = info_.hardware_parameters.find("hand_info_topic");
+    hand_info_topic_ = hand_info_topic != info_.hardware_parameters.end() ?
+        hand_info_topic->second : joint_prefix + "hand_info";
     const auto gesture_timeout = info_.hardware_parameters.find("gesture_timeout_ms");
     if (gesture_timeout != info_.hardware_parameters.end()) {
         try {
@@ -306,7 +359,6 @@ CallbackReturn DexhandHardwareInterface::on_configure(const rclcpp_lifecycle::St
 }
 
 // 创建 DexhandDriver 实例并按 communicate_ 选择通信初始化。
-// 供 on_configure 与 reconnect_driver_ 复用，确保重建路径与首次配置一致。
 CallbackReturn DexhandHardwareInterface::init_driver_() {
     std::string port_name = info_.hardware_parameters["port_name"];
     // EtherCAT 下 port_name 代表网卡名：指定则固定该网卡，未指定时交给 driver 自动探测。
@@ -377,23 +429,23 @@ CallbackReturn DexhandHardwareInterface::init_driver_() {
         RCLCPP_ERROR(logger_, "----------- init dexhand_driver fail -----------");
         return CallbackReturn::ERROR;
     }
-    // dexhand_driver_->setDebug(true);  //  trun on if need debug
+    // 调试开关由 launch/URDF 的 <param name="debug"> 透传（默认关闭），需要时再打开。
+    const auto debug_it = info_.hardware_parameters.find("debug");
+    const bool debug_enabled = debug_it != info_.hardware_parameters.end() &&
+        (debug_it->second == "true" || debug_it->second == "True" || debug_it->second == "1");
+    dexhand_driver_->setDebug(debug_enabled);
+    RCLCPP_INFO(logger_, "\033[1;32m dexhand_driver debug %s\033[0m",
+                debug_enabled ? "enabled" : "disabled");
 
     return CallbackReturn::SUCCESS;
 }
 
 // io_thread_func
 // 因为灵巧手的控制频率太低，所以我们设计了一个中转/缓存的机制，保证不阻塞ros2_control的loop
+// 注：不再对 io_thread 施加频率控制（与 dev 分支 c70b497 一致）；节拍由串口/总线往返耗时决定。
 void DexhandHardwareInterface::io_thread_func() {
     rclcpp::Clock steady_clock(RCL_STEADY_TIME);
     GestureExecution gesture;
-    // 上一次连接若在手势执行中掉线，终态已由 start_io_() 预置为 FAILURE。这里从 COMPLETED
-    // 相位起步：保持该终态直到 controller 读走它（gesture_id 归零），再复位为 IDLE。
-    if (gesture_interrupted_on_fault_.exchange(false)) {
-        gesture.phase = GesturePhase::COMPLETED;
-        gesture.awaiting_ack = true;
-        gesture.command_sequence = gesture_feedback_.command_sequence;
-    }
 
     // io_thread 轮询节流：底层 EtherCAT PDO 为 500Hz、ros2_control 循环为 100Hz，
     // ~1kHz 轮询已足够及时。无节流时成功路径会以约 40kHz 空转烧满一个 CPU 核，
@@ -408,7 +460,7 @@ void DexhandHardwareInterface::io_thread_func() {
     bool stats_started = false;
     std::chrono::steady_clock::time_point stats_start{};
 
-    // 连续失败计时；超过 kCommLostTimeout 视为 driver 已不可自愈，退出 io_thread 交给 watchdog。
+    // 连续失败计时：仅用于诊断日志和 [GESTURE_DIAG]；链路自愈由 driver 层负责。
     std::chrono::steady_clock::time_point first_failure{};
     bool failing = false;
 
@@ -436,32 +488,47 @@ void DexhandHardwareInterface::io_thread_func() {
                         std::chrono::steady_clock::now() - first_failure).count() : -1.0;
                 const auto result_val = dexhand_interfaces::to_uint8(*result);
                 const std::string result_name(dexhand_interfaces::to_string(*result));
-                RCLCPP_ERROR(logger_,
-                    "[GESTURE_DIAG] result=%u(%s) gesture_phase=%d | "
-                    "driver_connected=%d driver_result=%u driver_stop_reason=%u | "
-                    "cmd_mode=%u cmd_gesture_id=%u | comm_failing=%d fail_secs=%.1f | "
-                    "abnormal: %s",
-                    static_cast<unsigned>(result_val),
-                    result_name.c_str(),
-                    static_cast<int>(gesture.phase),
-                    static_cast<int>(driver_connected),
-                    static_cast<unsigned>(driver_status.result),
-                    static_cast<unsigned>(driver_status.stop_reason),
-                    static_cast<unsigned>(command.mode),
-                    static_cast<unsigned>(command.gesture_id),
-                    static_cast<int>(failing), fail_secs,
+                const char * const abnormal =
                     (!driver_connected ? "driver_not_connected" :
                      (failing ? "communication_failing" :
                       (driver_status.result != dexhand_driver::GestureResult::BUSY &&
                        *result != GestureResult::SUCCESS ? "driver_result_mismatch" :
-                       "none"))));
+                       "none")));
+
+                char diag_msg[384];
+                std::snprintf(diag_msg, sizeof(diag_msg),
+                    "[GESTURE_DIAG] result=%u(%s) gesture_phase=%d(%s) | "
+                    "driver_connected=%d(%s) driver_result=%u(%s) driver_stop_reason=%u(%s) | "
+                    "cmd_mode=%u(%s) cmd_gesture_id=%u | comm_failing=%d(%s) fail_secs=%.1f | "
+                    "abnormal: %s",
+                    static_cast<unsigned>(result_val),
+                    result_name.c_str(),
+                    static_cast<int>(gesture.phase),
+                    phase_name(gesture.phase),
+                    static_cast<int>(driver_connected),
+                    connected_name(driver_connected),
+                    static_cast<unsigned>(driver_status.result),
+                    driver_result_name(driver_status.result),
+                    static_cast<unsigned>(driver_status.stop_reason),
+                    stop_reason_name(driver_status.stop_reason),
+                    static_cast<unsigned>(command.mode),
+                    mode_name(command.mode),
+                    static_cast<unsigned>(command.gesture_id),
+                    static_cast<int>(failing), comm_failing_name(failing),
+                    fail_secs,
+                    abnormal);
+
+                // 正常成功路径不应误报为 ERROR：仅异常时用 ERROR/WARN，成功降为 INFO
+                if (std::strcmp(abnormal, "none") != 0) {
+                    RCLCPP_ERROR(logger_, "%s", diag_msg);
+                } else if (*result == GestureResult::SUCCESS) {
+                    RCLCPP_INFO(logger_, "%s", diag_msg);
+                } else {
+                    RCLCPP_WARN(logger_, "%s", diag_msg);
+                }
             }
             rt_buffers_.gesture_feedback_buffer.writeFromNonRT(gesture_feedback_);
         }
-        // 无条件维护在途标志：RUNNING/DRAINING/ACKNOWLEDGED 等相位 step_gesture 多数轮次
-        // 返回 nullopt，但手势确实在途。watchdog 强制重建时在 join 后读取本标志。
-        gesture_in_flight_.store(
-            gesture.phase != GesturePhase::IDLE && gesture.phase != GesturePhase::COMPLETED);
 
         if (gesture.phase == GesturePhase::IDLE && command.mode == DexhandMode::TOPIC &&
             !command.data.dofDataMap.empty()) {
@@ -497,22 +564,22 @@ void DexhandHardwareInterface::io_thread_func() {
                 failing = true;
             }
             const auto fail_duration = std::chrono::steady_clock::now() - first_failure;
-            RCLCPP_ERROR_THROTTLE(logger_, steady_clock, 1000,
-                "io_thread: getDofsAndTactiles failed for %.1fs (driver recovering or faulted); "
-                "PDO worker may have exited. Will trigger watchdog reconnect after %lds.",
-                std::chrono::duration<double>(fail_duration).count(),
-                static_cast<long>(kCommLostTimeout.count()));
-            if (fail_duration >= kCommLostTimeout) {
-                // 除 IDLE（无手势）与 COMPLETED（终态已发布给 controller）外，都说明手势被
-                // 链路故障打断：重连后必须回报 FAILURE，否则 controller 只能等自己的 deadline。
-                gesture_interrupted_on_fault_ =
-                    gesture.phase != GesturePhase::IDLE && gesture.phase != GesturePhase::COMPLETED;
-                RCLCPP_ERROR(logger_,
-                    "io_thread: communication fault sustained for %lds, exiting; watchdog will reconnect.",
-                    static_cast<long>(kCommLostTimeout.count()));
-                rt_buffers_.fault_detected.store(true);
-                rt_buffers_.io_thread_running = false;
-                return;
+            const double fail_secs = std::chrono::duration<double>(fail_duration).count();
+            // 返回 false 有两种来源，用 isConnected() 区分：
+            // 1) 真·链路故障：driver 自愈（软恢复→全量重建），isConnected() 已转 false，
+            //    命令下发与手势接单都会被拒，链路恢复后自动继续。
+            // 2) 链路正常、但手势 worker 独占设备且共享状态池尚未就绪（动作起止的短暂窗口），
+            //    此时属正常过渡，仅做降级提示，不应误报为链路自愈。
+            if (!dexhand_driver_->isConnected()) {
+                RCLCPP_ERROR_THROTTLE(logger_, steady_clock, 1000,
+                    "io_thread: getDofsAndTactiles failed for %.1fs (driver recovering); "
+                    "commands rejected until the link self-heals.",
+                    fail_secs);
+            } else {
+                // RCLCPP_WARN_THROTTLE(logger_, steady_clock, 1000,
+                //     "io_thread: state pool not ready for %.1fs (gesture owns the device); "
+                //     "retrying until it settles.",
+                //     fail_secs);
             }
         } else {
             rt_buffers_.state_buffer.writeFromNonRT(stateData);
@@ -530,12 +597,12 @@ void DexhandHardwareInterface::io_thread_func() {
                 std::chrono::duration<double>(now - stats_start).count();
 
             if (elapsed_seconds >= measure_seconds) {
-                RCLCPP_INFO(
-                    logger_,
-                    "[IO_FREQ] duration=%.3f s, write=%.1f Hz, loop=%.1f Hz",
-                    elapsed_seconds,
-                    static_cast<double>(write_count) / elapsed_seconds,
-                    static_cast<double>(loop_count) / elapsed_seconds);
+                // RCLCPP_INFO(
+                //     logger_,
+                //     "[IO_FREQ] duration=%.3f s, write=%.1f Hz, loop=%.1f Hz",
+                //     elapsed_seconds,
+                //     static_cast<double>(write_count) / elapsed_seconds,
+                //     static_cast<double>(loop_count) / elapsed_seconds);
 
                 stats_start = now;
                 write_count = 0;
@@ -543,25 +610,22 @@ void DexhandHardwareInterface::io_thread_func() {
             }
         }
 
-        // 节流到 ~1kHz：running 标志仍是每轮检查，watchdog 请求退出时最迟 1ms 内响应。
+        // 节流到 ~1kHz：running 标志仍是每轮检查，停线程时最迟 1ms 内响应。
         std::this_thread::sleep_for(kIoPollPeriod);
     }
 }
 
 CallbackReturn DexhandHardwareInterface::on_activate(const rclcpp_lifecycle::State& /*previous_state*/) {
+    // 断连/重连的兜底完全由 driver 层负责，激活时只需建立 IO 线程。
     CallbackReturn rc = start_io_();
     if (rc != CallbackReturn::SUCCESS) {
         return rc;
     }
-    // 启动自愈 watchdog：监测 io_thread 通信故障退出后重建 driver
-    watchdog_running_ = true;
-    watchdog_thread_ = std::thread(&DexhandHardwareInterface::watchdog_thread_func, this);
     RCLCPP_INFO(logger_, "==> Successfully activated!");
     return CallbackReturn::SUCCESS;
 }
 
 // connect + ping + 启动 io_thread + tactile_timer。
-// 供 on_activate 与 reconnect_driver_ 复用，保证重建后 IO 链路与首次激活一致。
 CallbackReturn DexhandHardwareInterface::start_io_() {
     bool ok = dexhand_driver_->isConnected() || dexhand_driver_->connect();
     if (!ok) {
@@ -573,25 +637,10 @@ CallbackReturn DexhandHardwareInterface::start_io_() {
         RCLCPP_ERROR(logger_, "==> on_activate(), ping dexhand fail -----------");
         return CallbackReturn::ERROR;
     }
-    // 上一次连接若在手势执行中掉线，不能冒充“从未有手势”的 IDLE：报 FAILURE 让 controller
-    // 立刻拿到终态；io_thread 会从 COMPLETED 相位起步，等 TOPIC 到来再复位为 IDLE。
-    const bool gesture_interrupted = gesture_interrupted_on_fault_.load();
-    if (gesture_interrupted) {
-        RCLCPP_WARN(logger_,
-            "==> start_io_(): previous gesture was interrupted by a link fault; reporting FAILURE");
-    }
-    gesture_feedback_.result = gesture_interrupted ? GestureResult::FAILURE : GestureResult::IDLE;
-    if (gesture_interrupted) {
-        ++gesture_feedback_.command_sequence;
-        gesture_feedback_.completed_command = DataWrapper{};
-    }
+    // 每次激活都从 IDLE 起步：driver 层负责链路自愈，io_thread 不再跨会话预置终态。
+    gesture_feedback_.result = GestureResult::IDLE;
     rt_buffers_.gesture_feedback_buffer.writeFromNonRT(gesture_feedback_);
-    // 被打断时不重置 command_buffer：默认的 {TOPIC, 0} 会被 awaiting_ack 的 COMPLETED 当成
-    // “controller 已读走终态”而立刻复位成 IDLE，预置的 FAILURE 就白报了。保留 controller
-    // 的真实命令（{GESTURE, id} 或 cancel 路径的 {TOPIC, id}）即可。
-    if (!gesture_interrupted) {
-        rt_buffers_.command_buffer.writeFromNonRT(DexhandModeCommand{});
-    }
+    rt_buffers_.command_buffer.writeFromNonRT(DexhandModeCommand{});
 
     // 网格触觉只有 EtherCAT 后端提供，且必须在 EtherCAT 连接成功后才启用发布节点
     if (communicate_ == "ethercat") {
@@ -613,24 +662,39 @@ CallbackReturn DexhandHardwareInterface::start_io_() {
             std::chrono::milliseconds(10), [this]() { publish_grid_tactiles(); });
     }
 
+    // 设备身份 bridge：连接成功后把 driver 探测到的产品系列/整机版本号发布一次，供控制器层组装
+    // 成 Service 响应。与 tactile 发布节点同源，挂到 controller_manager 的 executor（不占 RT 控制
+    // 循环）；节点复用，重连不重建。executor 缺失只影响该 bridge，不应阻断既有 RS485/CANFD 链路。
+    if (!hand_info_node_) {
+        if (auto locked_executor = executor_.lock()) {
+            hand_info_node_ = std::make_shared<rclcpp::Node>(info_.name + "_hand_info");
+            locked_executor->add_node(hand_info_node_->get_node_base_interface());
+            // transient_local：控制器后订阅也能拿到最后一帧（设备身份连接后基本不变）。
+            rclcpp::QoS hand_info_qos(1);
+            hand_info_qos.transient_local();
+            hand_info_publisher_ = hand_info_node_->create_publisher<dexhand_interfaces::msg::HandInfo>(
+                hand_info_topic_, hand_info_qos);
+            RCLCPP_INFO(logger_, "==> start_io(): hand info topic is '%s'",
+                        hand_info_publisher_->get_topic_name());
+        } else {
+            RCLCPP_WARN(logger_, "==> start_io(): executor is unavailable, hand info bridge disabled");
+        }
+    }
+    publish_hand_info();
+
     // 启动后台线程
     rt_buffers_.io_thread_running = true;
-    rt_buffers_.fault_detected.store(false);
     rt_buffers_.io_thread = std::thread(&DexhandHardwareInterface::io_thread_func, this);
     return CallbackReturn::SUCCESS;
 }
 
 CallbackReturn DexhandHardwareInterface::on_deactivate(const rclcpp_lifecycle::State& /*previous_state*/) {
-    // 先停 watchdog，再停 io_thread，避免 watchdog 在 io_thread 退出期间触发重连
-    watchdog_running_ = false;
-    if (watchdog_thread_.joinable()) watchdog_thread_.join();
     CallbackReturn rc = stop_io_();
     RCLCPP_INFO(logger_, "==> on_deactivate(), disconnect() dexhand...");
     return rc;
 }
 
 // 停 tactile_timer + 停 io_thread + disconnect。
-// 供 on_deactivate 与 reconnect_driver_ 复用；reconnect 时 io_thread 通常已故障退出。
 CallbackReturn DexhandHardwareInterface::stop_io_() {
     // 先停发布，再断开 EtherCAT；节点保留给下次 activate 复用，避免回调执行中被析构
     tactile_timer_.reset();
@@ -649,122 +713,6 @@ CallbackReturn DexhandHardwareInterface::stop_io_() {
 CallbackReturn DexhandHardwareInterface::on_shutdown(const rclcpp_lifecycle::State& /*previous_state*/) {
     RCLCPP_INFO(logger_, "==> on_shutdown(), destroy dexhand_driver_...");
 
-    return CallbackReturn::SUCCESS;
-}
-
-// 自愈 watchdog：1Hz 轮询，两条故障感知路径：
-//   A. io_thread 因持续通信故障（kCommLostTimeout）自行退出，留下
-//      io_thread_running=false + fault_detected=true，此处直接重建 driver。
-//   B. 底层 EtherCAT worker FAULTED 时 DexhandDriver::isConnected() 持续为 false，
-//      而 io_thread 可能仍在循环（它要等满 kCommLostTimeout 才退出），由本路径提前重建。
-//
-// 关键约束：任何时候都不能对仍在运行的 io_thread 直接 join()——它只在
-// io_thread_running=false 后才会退出；对活线程 join 会让 watchdog 永久阻塞，
-// 且一旦链路随后自愈，io_thread 永不退出，watchdog 再无自愈能力。
-// 路径 B 必须先置 io_thread_running=false、join 确认退出后，再进入 reconnect。
-//
-// isConnected()==false 也可能只是 EtherCAT 的 RECOVERING 瞬态（driver 自愈窗口 3s），
-// 因此路径 B 要求状态持续 kDriverFaultConfirmTimeout 才确认故障，避免把能自愈的
-// 短抖动升级成一次完整重建。
-constexpr auto kDriverFaultConfirmTimeout = std::chrono::seconds(6);
-
-void DexhandHardwareInterface::watchdog_thread_func() {
-    std::chrono::steady_clock::time_point not_connected_since{};
-    while (watchdog_running_.load()) {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-        if (!rt_buffers_.io_thread_running.load() && rt_buffers_.fault_detected.load()) {
-            RCLCPP_ERROR(logger_,
-                "watchdog: io_thread exited due to communication fault, reconnecting driver...");
-            if (rt_buffers_.io_thread.joinable()) {
-                rt_buffers_.io_thread.join();
-            }
-            rt_buffers_.fault_detected.store(false);
-            not_connected_since = {};
-            const CallbackReturn rc = reconnect_driver_();
-            if (rc == CallbackReturn::SUCCESS) {
-                RCLCPP_INFO(logger_, "watchdog: driver reconnected, io_thread restarted.");
-            } else {
-                RCLCPP_ERROR(logger_, "watchdog: reconnect failed, will retry next cycle.");
-                // 保持故障态，下轮继续重试；start_io_ 失败时 io_thread_running 仍为 false
-                rt_buffers_.fault_detected.store(true);
-                rt_buffers_.io_thread_running = false;
-            }
-            continue;
-        }
-
-        if (!dexhand_driver_) {
-            continue;
-        }
-        if (dexhand_driver_->isConnected()) {
-            not_connected_since = {};
-            continue;
-        }
-
-        const auto now = std::chrono::steady_clock::now();
-        if (not_connected_since.time_since_epoch().count() == 0) {
-            not_connected_since = now;
-            RCLCPP_WARN(logger_,
-                "watchdog: driver reports not connected (EtherCAT recovering or FAULTED); "
-                "allowing %lds self-healing window before forced rebuild.",
-                static_cast<long>(kDriverFaultConfirmTimeout.count()));
-            continue;
-        }
-        if (now - not_connected_since < kDriverFaultConfirmTimeout) {
-            continue;
-        }
-
-        RCLCPP_ERROR(logger_,
-            "watchdog: driver not connected for %lds, forcing rebuild (stop io_thread, reconnect).",
-            static_cast<long>(kDriverFaultConfirmTimeout.count()));
-        // 1. 先要求 io_thread 退出再 join，禁止直接 join 活线程。
-        rt_buffers_.io_thread_running = false;
-        if (rt_buffers_.io_thread.joinable()) {
-            rt_buffers_.io_thread.join();
-        }
-        // 2. io_thread 已退出：其在途标志冻结，读取无竞争。在途手势被故障打断，
-        //    必须在 start_io_() 前置位，重连后预置 FAILURE，不能让 controller 干等 deadline。
-        if (gesture_in_flight_.load()) {
-            gesture_interrupted_on_fault_.store(true);
-        }
-        rt_buffers_.fault_detected.store(false);
-        not_connected_since = {};
-        // 3. reconnect_driver_() 内的 stop_io_() 在此为幂等收尾（timer 停止、join no-op、
-        //    disconnect 旧 driver），随后 reset/init/start_io 完成重建。
-        const CallbackReturn rc = reconnect_driver_();
-        if (rc == CallbackReturn::SUCCESS) {
-            RCLCPP_INFO(logger_, "watchdog: driver reconnected after sustained fault, io_thread restarted.");
-        } else {
-            RCLCPP_ERROR(logger_,
-                "watchdog: reconnect after sustained fault failed, will retry next cycle.");
-            rt_buffers_.fault_detected.store(true);
-            rt_buffers_.io_thread_running = false;
-        }
-    }
-}
-
-// 重建 driver：停旧 IO → 释放旧 driver → init_driver_ → start_io_。
-// 由 watchdog 线程调用，此时 io_thread 已退出、tactile_timer 已停，
-// read()/write() 只用 rt_buffers_ 不碰 driver，故 watchdog 独占重建。
-CallbackReturn DexhandHardwareInterface::reconnect_driver_() {
-    // 1. 停旧 IO：tactile_timer + join io_thread(已退出) + disconnect 旧 driver
-    CallbackReturn rc = stop_io_();
-    if (rc != CallbackReturn::SUCCESS) {
-        RCLCPP_ERROR(logger_, "reconnect_driver_: stop_io_ failed, continuing with rebuild");
-    }
-    // 2. 释放旧 driver，重建实例并初始化（init_driver_ 内 make_shared 覆盖 dexhand_driver_）
-    dexhand_driver_.reset();
-    rc = init_driver_();
-    if (rc != CallbackReturn::SUCCESS) {
-        RCLCPP_ERROR(logger_, "reconnect_driver_: init_driver_ failed");
-        return rc;
-    }
-    // 3. connect + ping + 启动 io_thread + tactile_timer（start_io_ 内清 fault_detected）
-    rc = start_io_();
-    if (rc != CallbackReturn::SUCCESS) {
-        RCLCPP_ERROR(logger_, "reconnect_driver_: start_io_ failed");
-        return rc;
-    }
-    rt_buffers_.fault_detected.store(false);
     return CallbackReturn::SUCCESS;
 }
 
@@ -916,7 +864,7 @@ bool DexhandHardwareInterface::write_joint_command(const std::string& name, cons
             dofData->angle_rad = value;
         } else if (hw_if_type == hardware_interface::HW_IF_VELOCITY) {
             if (std::abs(value) < std::numeric_limits<double>::epsilon() || std::abs(value) > 10.0) {
-                RCLCPP_WARN(logger_, "==> write_joint_command(): invalid velocity: %f, repalce with 3.14", value);
+                // RCLCPP_WARN(logger_, "==> write_joint_command(): invalid velocity: %f, repalce with 3.14", value);
                 dofData->speed_rad = 3.14;
             } else {
                 dofData->speed_rad = value;
@@ -1041,6 +989,19 @@ void DexhandHardwareInterface::publish_grid_tactiles() {
         }
     }
     tactile_publisher_->publish(msg);
+}
+
+void DexhandHardwareInterface::publish_hand_info() {
+    if (!dexhand_driver_ || !hand_info_publisher_) {
+        return;
+    }
+    // getHandSeries()/getHandVersion() 只读 driver 缓存（arbiterMutex_ 保护），不触发通信，
+    // 可与 io_thread 并发；未连接/探测失败时回退 S1、版本串为空。
+    dexhand_interfaces::msg::HandInfo msg;
+    msg.connected = dexhand_driver_->isConnected();
+    msg.series = static_cast<std::uint8_t>(dexhand_driver_->getHandSeries());
+    msg.version = dexhand_driver_->getHandVersion();
+    hand_info_publisher_->publish(msg);
 }
 
 }  // namespace dexhand_hardware_interface

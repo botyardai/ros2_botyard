@@ -116,7 +116,7 @@
     </xacro:macro>
 
     <xacro:macro name="dexhand_ros2_control" params="name initial_positions_file joint_limits_file use_gazebo:=false use_mock_dexhand:=false
-                                                     port_name:=/dev/dexhand communicate:=RS485 hand_id:=0 baudrate:=1000000 timeout_ms:=200 gesture_timeout_ms:=5000 prefix:=${['']}">
+                                                     port_name:=/dev/dexhand communicate:=RS485 hand_id:=0 baudrate:=1000000 timeout_ms:=200 gesture_timeout_ms:=5000 debug:=false prefix:=${['']}">
         <xacro:property name="initial_positions" value="${xacro.load_yaml(initial_positions_file)['initial_positions']}"/>
         <xacro:property name="joint_limits" value="${xacro.load_yaml(joint_limits_file)['joint_limits']}"/>
         <xacro:property name="joint_names" value="${xacro.load_yaml(joint_limits_file)['joint_names']}"/>
@@ -156,6 +156,10 @@
                     <param name="baudrate">${baudrate}</param>
                     <param name="timeout_ms">${timeout_ms}</param>
                     <param name="gesture_timeout_ms">${gesture_timeout_ms}</param>
+                    <!-- 调试开关：打开后 driver 输出详细日志，默认关闭 -->
+                    <param name="debug">${debug}</param>
+                    <!-- 设备身份 bridge topic：用相对名跟随 namespace 自动隔离（多手互不冲突），控制器按同名参数订阅 -->
+                    <param name="hand_info_topic">hand_info</param>
                 </hardware>
             </xacro:unless>
             <!-- joint -->

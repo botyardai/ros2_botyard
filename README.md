@@ -116,6 +116,21 @@ sudo udevadm control --reload-rules
 sudo udevadm trigger
 ```
 
+### 5. EtherCAT通信需配置免密(sudoers)
+
+在Linux系统中使用EtherCAT通信接口要用到两个Capability：`CAP_NET_RAW` 和 `CAP_NET_ADMIN`。
+默认的`cap_grant:=sudo`方案在launch文件中用`sudo -E /usr/bin/setpriv ...`临时借出，所以要求当前用户能**免密**调用`setpriv`。
+
+```bash
+sudo cp ~/ros2_ws/src/ros2_botyard/dexhand_description/config/99_ethercat_cap /etc/sudoers.d/
+sudo chown root:root /etc/sudoers.d/99_ethercat_cap
+sudo chmod 0440 /etc/sudoers.d/99_ethercat_cap
+
+# 校验, 应看到: (root) NOPASSWD: SETENV: /usr/bin/setpriv
+sudo -n -l | grep setpriv
+```
+
+
 ## 快速开始
 
 完成安装与编译后，在已加载工作空间环境的终端中使用以下命令。
@@ -146,7 +161,7 @@ ros2 launch dexhand_bringup hw_dexhand_controller.launch.py
 
 默认以 `gs_s1` 模型启动，使用串口（RS485）连接，默认设备路径为 `/dev/dexhand`。控制链路涉及 `dexhand_controller`、`dexhand_hardware_interface` 和 `dexhand_driver`。
 
-指定设备端口、通过 EtherCAT 连接、发送关节目标、执行手势或读取触觉反馈等操作，请参阅 [dexhand_bringup/README.md](dexhand_bringup/README.md)。发送动作指令前应确认设备已正确连接、关节运动空间无遮挡。
+指定设备端口、通过EtherCAT连接、发送关节目标、执行手势或读取触觉反馈等操作，请参阅 [dexhand_bringup/README.md](dexhand_bringup/README.md)。发送动作指令前应确认设备已正确连接、关节运动空间无遮挡。
 
 ## 其他模型资产
 
@@ -162,6 +177,5 @@ ros2 launch dexhand_bringup hw_dexhand_controller.launch.py
 | 文档 | 内容 |
 | --- | --- |
 | [dexhand_bringup/README.md](dexhand_bringup/README.md) | 真机启动、控制模式、手势 Action、触觉反馈与双手控制 |
-| [dexhand_bringup/README_Ethercat.md](dexhand_bringup/README_Ethercat.md) | EtherCAT 连接及相关配置 |
 | [dexhand_control/README.md](dexhand_control/README.md) | 硬件接口与自定义控制器的模块说明 |
 | [dexhand_description/README.md](dexhand_description/README.md) | 模型结构、Xacro 参数、URDF 生成与预览 |

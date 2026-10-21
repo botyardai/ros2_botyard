@@ -34,6 +34,21 @@ constexpr auto kGestureCleanupGrace = std::chrono::milliseconds(1000);
 // 执行期 BUSY feedback 的节流周期。
 constexpr auto kFeedbackPeriod = std::chrono::milliseconds(100);
 
+// 从整机版本号原始串中提取方括号内的型号（如 "[S1.2]2026.3.1-rel-a3c2e4d" -> "S1.2"）。
+// 解析规则与 driver execCmdGetHandVersion() 保持一致；无括号时返回空串。
+std::string parse_series_name(const std::string & version_raw)
+{
+  const auto open = version_raw.find('[');
+  if (open == std::string::npos) {
+    return {};
+  }
+  const auto close = version_raw.find(']', open + 1u);
+  if (close == std::string::npos || close <= open + 1u) {
+    return {};
+  }
+  return version_raw.substr(open + 1u, close - open - 1u);
+}
+
 // GoalObserver 的 ROS 适配：包住 goal handle，把纯领域结果翻译成 action 的 succeed/canceled/abort。
 class GoalHandleObserver : public GoalObserver
 {
@@ -229,8 +244,37 @@ controller_interface::CallbackReturn DexhandController::on_configure(
   tactiles_publisher_ = get_node()->create_publisher<std_msgs::msg::Float64MultiArray>(
     "~/state/tactiles", rclcpp::SystemDefaultsQoS());
 
+  // 设备身份 Service：hardware 层通过 bridge topic 发布 HandInfo（版本字符串无法经 ros2_control
+  // 接口传递），此处订阅并缓存，再转成 ~/get_hand_info。独立回调组，不阻塞手势 10ms timer。
+  hand_info_callback_group_ = get_node()->create_callback_group(
+    rclcpp::CallbackGroupType::MutuallyExclusive);
+  rclcpp::SubscriptionOptions hand_info_sub_options;
+  hand_info_sub_options.callback_group = hand_info_callback_group_;
+  rclcpp::QoS hand_info_qos(1);
+  hand_info_qos.transient_local();
+  hand_info_subscriber_ = get_node()->create_subscription<dexhand_interfaces::msg::HandInfo>(
+    params_.hand_info_topic, hand_info_qos,
+    [this](const dexhand_interfaces::msg::HandInfo::SharedPtr msg) {
+      hand_info_ = *msg;
+    }, hand_info_sub_options);
+  hand_info_service_ = get_node()->create_service<dexhand_interfaces::srv::GetHandInfo>(
+    "~/get_hand_info",
+    std::bind(&DexhandController::on_get_hand_info, this,
+      std::placeholders::_1, std::placeholders::_2),
+    rclcpp::ServicesQoS(), hand_info_callback_group_);
+
   RCLCPP_INFO(get_node()->get_logger(), "configure successful");
   return controller_interface::CallbackReturn::SUCCESS;
+}
+
+void DexhandController::on_get_hand_info(
+  const std::shared_ptr<dexhand_interfaces::srv::GetHandInfo::Request> /*request*/,
+  std::shared_ptr<dexhand_interfaces::srv::GetHandInfo::Response> response)
+{
+  response->success = hand_info_.connected;
+  response->series = hand_info_.series;
+  response->version = hand_info_.version;
+  response->series_name = parse_series_name(hand_info_.version);
 }
 
 // 判断是否接受手势目标；具体的接单门禁（ID 非零、已激活、无待收尾或其他任务）由 session 承担。

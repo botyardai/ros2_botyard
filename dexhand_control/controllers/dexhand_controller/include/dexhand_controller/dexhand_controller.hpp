@@ -23,6 +23,8 @@
 
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "dexhand_interfaces/action/do_gesture.hpp"
+#include "dexhand_interfaces/msg/hand_info.hpp"
+#include "dexhand_interfaces/srv/get_hand_info.hpp"
 
 namespace dexhand_controller
 {
@@ -149,6 +151,17 @@ private:
   std::mutex gesture_mutex_;
   rclcpp_action::Server<DoGestureAction>::SharedPtr gesture_action_;
   rclcpp::TimerBase::SharedPtr gesture_timer_;
+
+  // 设备身份 Service：订阅 hardware 层发布的 HandInfo（版本字符串无法经 ros2_control 接口传递），
+  // 转成 ~/get_hand_info 对外提供。订阅与 Service 共用 hand_info_callback_group_（MutuallyExclusive），
+  // 二者串行执行，故 hand_info_ 无需额外加锁。
+  void on_get_hand_info(
+    const std::shared_ptr<dexhand_interfaces::srv::GetHandInfo::Request> request,
+    std::shared_ptr<dexhand_interfaces::srv::GetHandInfo::Response> response);
+  rclcpp::CallbackGroup::SharedPtr hand_info_callback_group_;
+  rclcpp::Subscription<dexhand_interfaces::msg::HandInfo>::SharedPtr hand_info_subscriber_;
+  rclcpp::Service<dexhand_interfaces::srv::GetHandInfo>::SharedPtr hand_info_service_;
+  dexhand_interfaces::msg::HandInfo hand_info_;
 
   // DexhandController specific parameters
   std::shared_ptr<ParamListener> param_listener_;

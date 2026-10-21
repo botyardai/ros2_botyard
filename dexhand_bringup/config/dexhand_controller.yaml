@@ -6,6 +6,9 @@
       gesture_gpio: do_gesture
       # 需大于 hardware 的 gesture_timeout_ms（默认 5000）
       gesture_result_timeout_ms: 10000
+      # hardware 层发布 HandInfo 的 bridge topic，需与 <ros2_control> 的 hand_info_topic 一致。
+      # 用相对名，跟随节点 namespace 自动隔离：单手为 /hand_info，多手（namespace:=lh/rh）为 /lh/hand_info、/rh/hand_info
+      hand_info_topic: hand_info
       joints:
         - FAJ3
         - FAJ1

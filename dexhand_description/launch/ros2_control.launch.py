@@ -7,13 +7,38 @@ from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 from launch.substitutions import (EqualsSubstitution, IfElseSubstitution,
                                  LaunchConfiguration, PathJoinSubstitution)
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, SetLaunchConfiguration
+
+
+def _normalize_rate_hz(context, *args, **kwargs):
+    """把 rate_hz 归一化成整数 Hz，写回 rate_hz_int。
+
+    update_rate 是 int 型（controller_manager 与 ControllerInterfaceBase 都用
+    auto_declare<int>），直接把 "100.0" 交给它会以类型错误 terminate。
+    所以这里接受 100 / 100.0 两种写法，统一切成 int；非法值给出可读的报错。
+    """
+    raw = LaunchConfiguration('rate_hz').perform(context)
+    try:
+        value = int(float(raw))
+    except ValueError:
+        raise RuntimeError(
+            f"rate_hz must be a number such as 100 or 100.0, got {raw!r}")
+    if value <= 0:
+        raise RuntimeError(f"rate_hz must be greater than zero, got {value}")
+    return [SetLaunchConfiguration('rate_hz_int', str(value))]
+
 
 def generate_launch_description():
 
     namespace_arg = DeclareLaunchArgument(name='namespace', default_value='',
                                         description='add custom namespace for all the nodes, useful for multi-robot system. no slash at the beginning & end')
     namespace = LaunchConfiguration('namespace')
+
+    # CM / joint_state_broadcaster 的 update_rate（int；100 与 100.0 均可）
+    rate_hz_arg = DeclareLaunchArgument(name='rate_hz', default_value='100',
+                                        description='update rate [Hz] for controller_manager and joint_state_broadcaster; 100 and 100.0 are both accepted and normalized to an integer')
+    rate_hz = LaunchConfiguration('rate_hz')
+    rate_hz_int = LaunchConfiguration('rate_hz_int')
 
     # cap_net_raw / cap_net_admin 的获取方式，两个方案的定义与前置条件见 README
     # 「EtherCAT 连接常见问题与解决方案 - 权限与启动方式」：
@@ -67,7 +92,10 @@ def generate_launch_description():
     ros2_control_node = Node(
         package='controller_manager',
         executable='ros2_control_node',
-        parameters=[ros_parameter_file],
+        # rate_hz 经参数覆盖写进 update_rate；controller_manager 会把自己的 --params-file
+        # 透传给每个控制器，故该覆盖同时命中 joint_state_broadcaster.update_rate
+        # （joint_state_broadcaster.publish_rate 在 Jazzy 上不存在，不写）。
+        parameters=[ros_parameter_file, {'update_rate': rate_hz_int}],
         # 只有该节点需要 raw socket 权限
         prefix=_cap_grant_prefix,
         remappings=[
@@ -97,7 +125,10 @@ def generate_launch_description():
     ld = LaunchDescription()
     # 添加launch argument
     ld.add_action(namespace_arg)
+    ld.add_action(rate_hz_arg)
     ld.add_action(cap_grant_arg)
+    # rate_hz 须先归一化成整数，且必须在 ros2_control_node 之前执行
+    ld.add_action(OpaqueFunction(function=_normalize_rate_hz))
     # 添加各个节点
     ld.add_action(ros2_control_node)
     ld.add_action(joint_state_broadcaster_spawner)

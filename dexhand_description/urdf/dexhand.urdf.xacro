@@ -11,6 +11,7 @@
     <xacro:arg name="port_name" default="/dev/dexhand" />
     <xacro:arg name="communicate" default="RS485" />
     <xacro:arg name="gesture_timeout_ms" default="5000" />
+    <xacro:arg name="debug" default="false" />
 
 <!-- construct pure URDF start -->
     <xacro:include filename="$(find dexhand_description)/urdf/dexhand_single_macro.xacro"/>
@@ -26,6 +27,7 @@
                                 port_name="$(arg port_name)"
                                 communicate="$(arg communicate)"
                                 gesture_timeout_ms="$(arg gesture_timeout_ms)"
+                                debug="$(arg debug)"
                                 parent_link="world"
                                 joint_type="fixed">
         <origin xyz="0 0 0" rpy="0 0 0" />

@@ -48,12 +48,23 @@ def generate_launch_description():
         description='Arguments used while parsing the xacro file')
     dexhand_type_arg = DeclareLaunchArgument(
         'dexhand_type', default_value='gs_s1', choices=['gs_s1', 'gs_s2'])
+    # 硬件接口/driver 调试开关，透传到 <ros2_control> 的 <param name="debug">
+    debug_arg = DeclareLaunchArgument(
+        'debug', default_value='false', choices=['true', 'false'],
+        description='enable verbose debug logs in dexhand hardware_interface/driver')
     versioned_xacro_args = [
         LaunchConfiguration('xacro_args'),
         ' dexhand_type:=',
         LaunchConfiguration('dexhand_type'),
+        ' debug:=',
+        LaunchConfiguration('debug'),
     ]
     use_rviz_arg = DeclareLaunchArgument('use_rviz', default_value='True')
+    rate_hz_arg = DeclareLaunchArgument(
+        name='rate_hz', default_value='100',
+        description='integer update rate [Hz] for controller_manager and joint_state_broadcaster')
+    rate_hz = LaunchConfiguration('rate_hz')
+
     # 透传给 ros2_control.launch.py：cap_net_raw / cap_net_admin 的获取方式
     # （sudo|shell，两个方案见 README「权限与启动方式」）
     cap_grant_arg = DeclareLaunchArgument(
@@ -87,6 +98,7 @@ def generate_launch_description():
             ('namespace', namespace),
             ('xacro_args', versioned_xacro_args),
             ('cap_grant', LaunchConfiguration('cap_grant')),
+            ('rate_hz', rate_hz),
         ]
     )
 
@@ -116,7 +128,9 @@ def generate_launch_description():
     ld.add_action(namespace_arg)
     ld.add_action(xacro_args)
     ld.add_action(dexhand_type_arg)
+    ld.add_action(debug_arg)
     ld.add_action(use_rviz_arg)
+    ld.add_action(rate_hz_arg)
     ld.add_action(cap_grant_arg)
     # 添加各个节点
     ld.add_action(robot_description)

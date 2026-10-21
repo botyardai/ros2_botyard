@@ -36,8 +36,6 @@ struct DexhandRealtimeBuffers
   realtime_tools::RealtimeBuffer<DexhandModeCommand> command_buffer;
   realtime_tools::RealtimeBuffer<GestureFeedback> gesture_feedback_buffer;
   std::atomic<bool> io_thread_running{false};
-  // io_thread 检测到通信故障持续超阈值后置位并退出，由 watchdog 线程兜底重建 driver
-  std::atomic<bool> fault_detected{false};
   std::thread io_thread;
 };
 

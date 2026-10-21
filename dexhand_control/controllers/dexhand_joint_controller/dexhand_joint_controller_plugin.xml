@@ -1,7 +1,0 @@
-<library path="dexhand_joint_controller">
-  <class name="dexhand_joint_controller/DexhandJointController" type="dexhand_joint_controller::DexhandJointController" base_class_type="controller_interface::ControllerInterface">
-  <description>
-    The dexhand joint controller commands a group of joints in position/velocity/effort interface
-  </description>
-  </class>
-</library>

@@ -35,6 +35,7 @@
 #include "dexhand_hardware_interface/dexhand_hardware_interface_realtime.hpp"
 #include "dexhand_driver/dexhand_driver.hpp"
 #include "dexhand_interfaces/msg/tactile_grid.hpp"
+#include "dexhand_interfaces/msg/hand_info.hpp"
 
 using dexhand_driver::DexhandDriver;
 
@@ -87,14 +88,6 @@ private:
     std::string communicate_; // 通信接口类型: RS485/CANFD/EtherCAT(统一转小写存储, 不区分大小写)
     std::string gesture_gpio_name_;
     uint32_t gesture_timeout_ms_ = 5000;
-    // io_thread 因通信故障退出时，若手势仍在执行中则置位。重连时用于两点：
-    //   1. io_thread 从 COMPLETED 相位起步；2. start_io_() 把 result 预置为 FAILURE。
-    // 否则 controller 会一直等一个不会到来的终态，只能靠自身 deadline 兜底。
-    std::atomic<bool> gesture_interrupted_on_fault_{false};
-    // io_thread 每轮更新：手势是否在途（既非 IDLE 也非已发布终态的 COMPLETED）。
-    // watchdog 走 FAULTED 强制重建路径时，先停 io_thread 再 join，join 后读取本标志，
-    // 决定重连后是否预置 FAILURE 终态；线程已退出时读取无竞争。
-    std::atomic<bool> gesture_in_flight_{false};
     std::vector<std::string> configured_joints_; // 所有<ros2_control>tag配置的joint(需要去掉joint_prefix)
     std::vector<std::string> coupled_joint_names = {"FFJ1", "MFJ1", "RFJ1", "LFJ1"}; // 从动关节
     std::vector<std::string> velocity_configured_joints_; // 配置了velocity的关节
@@ -119,12 +112,15 @@ private:
     rclcpp::Publisher<dexhand_interfaces::msg::TactileGrid>::SharedPtr tactile_publisher_;
     rclcpp::TimerBase::SharedPtr tactile_timer_;
 
-    // 自愈 watchdog：监测 io_thread 因通信故障退出后，重建 driver 兜底恢复
-    std::atomic<bool> watchdog_running_{false};
-    std::thread watchdog_thread_;
-    void watchdog_thread_func();
-    CallbackReturn reconnect_driver_();
-    // lifecycle 核心步骤抽取，供 on_configure/on_activate/reconnect_driver_ 复用
+    // 设备身份 bridge：连接成功后把 driver 探测到的产品系列/整机版本号发布一次（transient_local，
+    // 晚订阅者也能拿到），由控制器层订阅并组装成 Service 响应。自建节点挂到 controller_manager
+    // 的 executor，不占 RT 控制循环。
+    void publish_hand_info();
+    rclcpp::Node::SharedPtr hand_info_node_;
+    rclcpp::Publisher<dexhand_interfaces::msg::HandInfo>::SharedPtr hand_info_publisher_;
+    std::string hand_info_topic_;  // bridge topic 名（相对名，跟随节点 namespace 自动隔离多手）
+
+    // lifecycle 核心步骤抽取，供 on_configure/on_activate 复用
     CallbackReturn init_driver_();   // 创建 DexhandDriver 实例并按 communicate_ 初始化
     CallbackReturn start_io_();      // connect + ping + 启动 io_thread + tactile_timer
     CallbackReturn stop_io_();       // 停 tactile_timer + 停 io_thread + disconnect

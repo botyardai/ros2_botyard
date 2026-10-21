@@ -14,6 +14,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/TactilePoint.msg"
   "msg/FingerTactileGrid.msg"
   "msg/TactileGrid.msg"
+  "msg/HandInfo.msg"
+  "srv/GetHandInfo.srv"
   "action/DoGesture.action"
   DEPENDENCIES
   std_msgs

@@ -18,6 +18,14 @@ find_package(dexhand_interfaces REQUIRED)
 find_package(dexhand_driver REQUIRED)
 
 # test
+add_executable(test_pub_dexhand_controller test/test_pub_dexhand_controller.cpp)
+ament_target_dependencies(test_pub_dexhand_controller rclcpp control_msgs)
+add_executable(test_position test/test_position.cpp)
+ament_target_dependencies(test_position
+  rclcpp
+  rclcpp_action
+  control_msgs
+)
 add_executable(test_gesture_driver test/test_gesture_driver.cpp)
 ament_target_dependencies(test_gesture_driver rclcpp rclcpp_action dexhand_interfaces)
 add_executable(test_ethercat test/test_ethercat.cpp)
@@ -29,7 +37,7 @@ ament_target_dependencies(test_ethercat
   dexhand_interfaces
 )
 install(
-  TARGETS test_gesture_driver test_ethercat
+  TARGETS test_pub_dexhand_controller test_position test_gesture_driver test_ethercat
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 # src
