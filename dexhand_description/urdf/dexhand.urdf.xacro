@@ -4,6 +4,7 @@
     <xacro:arg name="use_left_hand" default="true" />
     <xacro:arg name="prefix" default=""/>
     <xacro:arg name="dexhand_type" default="gs_s1" />
+    <xacro:arg name="sub_version" default="original" />
 
     <xacro:arg name="use_ros2_control" default="true" />
     <xacro:arg name="use_gazebo" default="false" />
@@ -19,6 +20,7 @@
     <link name="world"/>
     <!-- dexhand -->
     <xacro:dexhand_single_macro dexhand_type="$(arg dexhand_type)"
+                                sub_version="$(arg sub_version)"
                                 use_left_hand="$(arg use_left_hand)"
                                 use_ros2_control="$(arg use_ros2_control)"
                                 use_gazebo="$(arg use_gazebo)"

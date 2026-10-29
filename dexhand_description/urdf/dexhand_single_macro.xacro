@@ -9,7 +9,7 @@
     <xacro:include filename="$(find dexhand_description)/urdf/inc/common.materials.xacro"/>
 
     <!-- dexhand_single_macro 单只手的macro -->
-    <xacro:macro name="dexhand_single_macro" params="use_left_hand use_ros2_control:=false use_gazebo:=false use_mock_dexhand:=false prefix:='' port_name:=/dev/dexhand communicate:=RS485 gesture_timeout_ms:=5000 debug:=false parent_link joint_type dexhand_type:='gs_s1' *origin">
+    <xacro:macro name="dexhand_single_macro" params="use_left_hand use_ros2_control:=false use_gazebo:=false use_mock_dexhand:=false prefix:='' port_name:=/dev/dexhand communicate:=RS485 gesture_timeout_ms:=5000 debug:=false parent_link joint_type dexhand_type:='gs_s1' sub_version:='original' *origin">
         <!-- 显式文件优先；未指定时使用本次宏调用所选版本的限位。 -->
         <xacro:property name="joint_limits_file" value="${xacro.arg('dexhand_joint_limits_file') or '$(find dexhand_description)/config/' + dexhand_type + '/joint_limits.yaml'}" />
         <!-- Constants for robot description -->
@@ -21,7 +21,7 @@
 
         <!-- construct pure URDF start -->
         <xacro:include filename="$(find dexhand_description)/urdf/dexhand_macro.xacro"/>
-        <xacro:dexhand_macro use_left_hand="${use_left_hand}" prefix="${prefix}" parent_link="${parent_link}" joint_type="${joint_type}" dexhand_type="${dexhand_type}">
+        <xacro:dexhand_macro use_left_hand="${use_left_hand}" prefix="${prefix}" parent_link="${parent_link}" joint_type="${joint_type}" dexhand_type="${dexhand_type}" sub_version="${sub_version}">
             <xacro:insert_block name="origin"/>
         </xacro:dexhand_macro>
         <!-- construct pure URDF end -->

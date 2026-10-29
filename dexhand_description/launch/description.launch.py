@@ -102,7 +102,9 @@ def generate_launch_description():
     urdf_file = PathJoinSubstitution([package_dir, LaunchConfiguration('urdf_path')])
     robot_description_content = ParameterValue(
         # 集成多只灵巧手需要修改launch文件中的xacro_args参数, 传入相应的prefix前缀
-        Command(['xacro ', urdf_file, ' ', LaunchConfiguration('xacro_args'), ]),
+        Command([
+            'xacro ', urdf_file, ' ', LaunchConfiguration('xacro_args'),
+        ]),
         value_type=str
     )
 

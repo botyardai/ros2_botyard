@@ -1,7 +1,12 @@
 <mujoco model="left_botyard_dexhand scene">
-  <include file="left_dexhand.xml"/>
+  <include file="dexhand_left.xml"/>
 
-  <statistic extent="0.3" center="-0.1 0.1 0"/>
+  <!-- 覆盖 dexhand_left.xml 的调试设定：恢复重力与接触，场景才有物理意义 -->
+  <option timestep="0.001" gravity="0 0 -9.81">
+    <flag contact="enable"/>
+  </option>
+
+  <statistic extent="0.3" center="0 0.03 0.25"/>
 
   <visual>
     <rgba haze="0.15 0.25 0.35 1"/>
@@ -22,10 +27,21 @@
     <light pos="0 0 1"/>
     <light pos="0.3 0 1.5" dir="0 0 -1" directional="true"/>
     <geom name="floor" pos="0 0 -0.1" size="0 0 0.05" type="plane" material="groundplane"/>
+    <!-- 场景物体：位置沿用远端 scene_left.xml -->
     <body name="object" pos="-0.3 0.01 0.1">
       <freejoint/>
       <geom type="ellipsoid" size="0.03 0.04 0.02" rgba="0.5 0.7 0.5 1" condim="6" priority="1"
         friction="0.5 0.01 0.003"/>
     </body>
   </worldbody>
+  <!-- 默认姿态下相邻部件互相嵌入；不排除的话接触力会把仿真打飞（远端 left/right_dexhand.xml 同样处理） -->
+  <contact>
+    <exclude body1="world" body2="falink1"/>
+    <exclude body1="world" body2="pmbase"/>
+    <exclude body1="pmbase" body2="thproximal"/>
+    <exclude body1="pmbase" body2="ffproximal"/>
+    <exclude body1="pmbase" body2="mfproximal"/>
+    <exclude body1="pmbase" body2="rfproximal"/>
+    <exclude body1="pmbase" body2="lfproximal"/>
+  </contact>
 </mujoco>

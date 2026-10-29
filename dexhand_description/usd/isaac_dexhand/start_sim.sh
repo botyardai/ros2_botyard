@@ -92,7 +92,7 @@ if ! is_isaac_install "$ISAAC_SIM_DIR"; then
   exit 1
 fi
 ISAAC_SIM_DIR="$(cd "$ISAAC_SIM_DIR" && pwd -P)"
-for required_file in "$HAND_SIM_DIR/right_hand.usd" "$HAND_SIM_DIR/load_scene.py"; do
+for required_file in "$HAND_SIM_DIR/right_hand.usd" "$HAND_SIM_DIR/right_hand_geometry.usd" "$HAND_SIM_DIR/load_scene.py"; do
   if [[ ! -f "$required_file" ]]; then
     echo "Project download is incomplete; missing: $required_file" >&2
     exit 1

@@ -12,9 +12,9 @@
 
 ### 模型版本
 
-`dexhand_type` 用于选择模型版本：
+`dexhand_type` 用于选择灵巧手系列/型号，`sub_version` 用于选择同一系列/型号下的硬件子版本：
 
-- `gs_s1`：V3，当前默认型号。
+- `gs_s1`：当前默认系列/型号, `sub_version`默认为1, 可选值有[1, 3]。
 - `gs_s2`：预留型号选择接口；当前未提供对应模型、网格和配置资源，不能通过该选项生成模型。
 
 当前 `gs_s1` 资源主要位于：
@@ -25,7 +25,16 @@
 | `meshes/gs_s1/` | 模型网格 |
 | `config/gs_s1/` | 关节限位等参数 |
 
-`config/joint_limits.yaml` 是指向 `gs_s1/joint_limits.yaml` 的兼容符号链接。未指定 `dexhand_type` 时，使用默认的 V3 模型。
+
+子版本位置限位如下：
+
+| Joint | `original` | `sub_version:=3` |
+| --- | ---: | ---: |
+| `FAJ1` | `-15° ~ 40°` | `-30° ~ 50°` |
+| `FAJ3` | `-15° ~ 15°` | `-25° ~ 25°` |
+
+`config/gs_s1/joint_limits.yaml` 继续作为两种 URDF 版本共用的关节名称、速度和加速度配置；
+新版 FAJ1/FAJ3 的位置限位定义在 `urdf/gs_s1/sv_3/forearm_macro.xacro` 中。
 
 ## Xacro 文件说明
 
@@ -55,15 +64,27 @@ xacro ./dexhand.urdf.xacro > dexhand.urdf
 
 # 生成右手模型
 xacro use_left_hand:=false ./dexhand.urdf.xacro > dexhand_rh.urdf
+
+# 生成 GS-S1 Sub-version 3 左手模型
+xacro sub_version:=3 use_left_hand:=true ./dexhand.urdf.xacro > /tmp/dexhand_s1_v3_left.urdf
+
+# 生成 GS-S1 Sub-version 3 右手模型
+xacro sub_version:=3 use_left_hand:=false ./dexhand.urdf.xacro > /tmp/dexhand_s1_v3_right.urdf
 ```
 
 ### 使用 launch 文件加载模型
 
-`description.launch.py` 用于加载机器人描述，可通过 `urdf_package`、`urdf_path` 指定模型文件，通过 `xacro_args` 传递模型参数。
+`description.launch.py` 用于加载机器人描述文件，可通过 `urdf_package`, `urdf_path` 指定模型文件，通过 `xacro_args` 传递模型的xacro参数。
 
 ```bash
 # 显示右手模型
 ros2 launch dexhand_description description.launch.py xacro_args:='use_left_hand:=false '
+
+# 显示 GS-S1 Sub-version 3 左手模型
+ros2 launch dexhand_description description.launch.py xacro_args:='use_left_hand:=true use_ros2_control:=false use_gazebo:=false sub_version:=3 '
+
+# 显示 GS-S1 Sub-version 3 右手模型
+ros2 launch dexhand_description description.launch.py xacro_args:='use_left_hand:=false use_ros2_control:=false use_gazebo:=false sub_version:=3 '
 
 # 加载双手组合模型
 ros2 launch dexhand_description description.launch.py urdf_path:='urdf/two_dexhand_as_whole.urdf.xacro'
@@ -76,6 +97,8 @@ ros2 launch dexhand_description description.launch.py urdf_path:='urdf/two_dexha
 
 | 参数 | 作用 |
 | --- | --- |
+| `dexhand_type` | 选择型号，当前支持 `gs_s1`；默认 `gs_s1` |
+| `sub_version` | 选择子版本，默认 `1`；GS-S1 新腕部使用 `3` |
 | `use_left_hand` | 选择左手或右手模型，默认左手 |
 | `use_ros2_control` | 是否加入 `ros2_control` 描述；控制灵巧手时需要启用 |
 | `use_mock_dexhand` | 是否使用 `mock_components/GenericSystem` 模拟硬件 |
@@ -88,9 +111,12 @@ ros2 launch dexhand_description description.launch.py urdf_path:='urdf/two_dexha
 # 默认左手
 ros2 launch dexhand_description play.launch.py
 
-# 右手
-ros2 launch dexhand_description play.launch.py xacro_args:='use_left_hand:=false '
+# 右手, sub_version=3
+ros2 launch dexhand_description play.launch.py xacro_args:='use_left_hand:=false sub_version:=3'
 ```
+
+当前 `play.launch.py` 只封装默认的 `description.launch.py` 参数。
+关节滑块由 `use_jsp:=true` 和 `jsp_gui:=true` 启用。
 
 如需在不同命名空间内显示模型，可分别启动：
 
@@ -100,6 +126,7 @@ ros2 launch dexhand_description description.launch.py namespace:='rh' use_rviz:=
 ```
 
 此时需要在 RViz 中配置对应的 `robot_description` 话题及 TF Prefix，以免不同命名空间的模型互相冲突。
+
 
 ## 模型更新与组合
 

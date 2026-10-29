@@ -5,6 +5,7 @@
     <xacro:arg name="use_gazebo" default="false" />
     <xacro:arg name="use_mock_dexhand" default="false" />
     <xacro:arg name="dexhand_type" default="gs_s1" />
+    <xacro:arg name="sub_version" default="original" />
     <xacro:arg name="dexhand_initial_positions_file" default="$(find dexhand_description)/config/initial_positions.yaml" />
     <xacro:arg name="dexhand_joint_limits_file" default="$(find dexhand_description)/config/$(arg dexhand_type)/joint_limits.yaml" />
     <xacro:arg name="dexhand_link_configs_file" default="$(find dexhand_description)/config/link_configs.yaml" />
@@ -20,11 +21,11 @@
     <!-- create link fixed to the "world" -->
     <link name="world"/>
     <!-- left dexhand -->
-    <xacro:dexhand_macro use_left_hand="true" prefix="$(arg lh_prefix)" parent_link="world" joint_type="fixed" dexhand_type="$(arg dexhand_type)">
+    <xacro:dexhand_macro use_left_hand="true" prefix="$(arg lh_prefix)" parent_link="world" joint_type="fixed" dexhand_type="$(arg dexhand_type)" sub_version="$(arg sub_version)">
         <origin xyz="0.5 0 0" rpy="0 0 0" />  
     </xacro:dexhand_macro>
     <!-- right dexhand -->
-    <xacro:dexhand_macro use_left_hand="false" prefix="$(arg rh_prefix)" parent_link="world" joint_type="fixed" dexhand_type="$(arg dexhand_type)">
+    <xacro:dexhand_macro use_left_hand="false" prefix="$(arg rh_prefix)" parent_link="world" joint_type="fixed" dexhand_type="$(arg dexhand_type)" sub_version="$(arg sub_version)">
         <origin xyz="-0.5 0 0" rpy="0 0 0" />  
     </xacro:dexhand_macro>
 <!-- construct pure URDF end -->

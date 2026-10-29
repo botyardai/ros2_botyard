@@ -3,37 +3,50 @@
 
     <!-- dexhand_macro = forearm + hand -->
     <!-- use_left_hand: select hand side -->
-    <!-- dexhand_type: gs_s1（V3）| gs_s2（V4） -->
+    <!-- dexhand_type: gs_s1 | gs_s2 -->
+    <!-- sub_version: 1/2 keeps the existing asset set; 3 selects the new wrist -->
     <!-- if use more than one dexhand, use prefix. such as "lh_" or "rh_" -->
-    <xacro:macro name="dexhand_macro" params="use_left_hand prefix:='' parent_link joint_type dexhand_type:='gs_s1' *origin">
+    <xacro:macro name="dexhand_macro" params="use_left_hand prefix:='' parent_link joint_type dexhand_type:='gs_s1' sub_version:=1 *origin">
         <!-- Constants for robot description -->
         <xacro:property name="joint_pi2" value="1.5708"/>
         <xacro:property name="joint_pi2_" value="-1.5708"/>
         <xacro:property name="joint_vel" value="2.0"/>
         <xacro:property name="joint_acc" value="2.0"/>
         <xacro:property name="joint_effort" value="0.1"/>
-        <xacro:property name="left_palm_mount_yaw" value="${1.5708 if dexhand_type == 'gs_s2' else -1.5708}"/>
 
-        <!-- 每个版本目录提供同名宏；gs_s2 当前保存 gs_s1 前臂的独立副本。 -->
-        <xacro:include filename="$(find dexhand_description)/urdf/${dexhand_type}/forearm_macro.xacro"/>
+        <!-- Only the wrist implementation varies; both implementations keep the same macro interface. -->
+        <xacro:if value="${sub_version == 3}">
+            <xacro:include filename="$(find dexhand_description)/urdf/${dexhand_type}/sv_3/forearm_macro.xacro"/>
+        </xacro:if>
+        <xacro:unless value="${sub_version == 3}">
+            <xacro:include filename="$(find dexhand_description)/urdf/${dexhand_type}/forearm_macro.xacro"/>
+        </xacro:unless>
         <xacro:forearm_macro use_left_hand="${use_left_hand}" prefix="${prefix}" parent_link="${parent_link}" joint_type="${joint_type}">
             <xacro:insert_block name="origin"/>
         </xacro:forearm_macro>
 
-        <!-- 文件名和宏名一致，只通过 dexhand_type 选择版本目录。 -->
-        <xacro:include filename="$(find dexhand_description)/urdf/${dexhand_type}/left_hand_macro.xacro"/>
-        <xacro:include filename="$(find dexhand_description)/urdf/${dexhand_type}/right_hand_macro.xacro"/>
-
         <!-- left hand -->
         <xacro:if value="${use_left_hand}">
+            <xacro:include filename="$(find dexhand_description)/urdf/${dexhand_type}/left_hand_macro.xacro"/>
             <xacro:left_hand_macro prefix="${prefix}" parent_link="${prefix}pmbase" joint_type="fixed">
-                <origin xyz="-0.0138 0 0.01485" rpy="0 0 ${left_palm_mount_yaw}" />
+                <xacro:if value="${sub_version == 3}">
+                    <origin xyz="0 0 0.01485" rpy="0 0 -1.5708" />
+                </xacro:if>
+                <xacro:unless value="${sub_version == 3}">
+                        <origin xyz="-0.0138 0 0.01485" rpy="0 0 -1.5708" />
+                </xacro:unless>
             </xacro:left_hand_macro>
         </xacro:if>
         <!-- right hand -->
         <xacro:unless value="${use_left_hand}">
+            <xacro:include filename="$(find dexhand_description)/urdf/${dexhand_type}/right_hand_macro.xacro"/>
             <xacro:right_hand_macro prefix="${prefix}" parent_link="${prefix}pmbase" joint_type="fixed">
-                <origin xyz="-0.011315 0 0.01845" rpy="0 0 -1.5708" />
+                <xacro:if value="${sub_version == 3}">
+                    <origin xyz="0.0024852 0 0.01845" rpy="0 0 -1.5708" />
+                </xacro:if>
+                <xacro:unless value="${sub_version == 3}">
+                        <origin xyz="-0.011315 0 0.01845" rpy="0 0 -1.5708" />
+                </xacro:unless>
             </xacro:right_hand_macro>
         </xacro:unless>
     </xacro:macro>

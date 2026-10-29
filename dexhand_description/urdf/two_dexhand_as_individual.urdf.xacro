@@ -5,6 +5,7 @@
     <xacro:arg name="use_gazebo" default="false" />
     <xacro:arg name="use_mock_left_dexhand" default="true" />
     <xacro:arg name="dexhand_type" default="gs_s1" />
+    <xacro:arg name="sub_version" default="original" />
     <xacro:arg name="use_mock_right_dexhand" default="true" />
 
     <xacro:arg name="lh_prefix" default="lh_"/>
@@ -20,6 +21,7 @@
     <link name="world"/>
     <!-- left dexhand -->
     <xacro:dexhand_single_macro dexhand_type="$(arg dexhand_type)"
+                                sub_version="$(arg sub_version)"
                                 use_left_hand="true"
                                 use_ros2_control="$(arg use_ros2_control)"
                                 use_gazebo="$(arg use_gazebo)"
@@ -33,6 +35,7 @@
     </xacro:dexhand_single_macro>
     <!-- right dexhand -->
     <xacro:dexhand_single_macro dexhand_type="$(arg dexhand_type)"
+                                sub_version="$(arg sub_version)"
                                 use_left_hand="false"
                                 use_ros2_control="$(arg use_ros2_control)"
                                 use_gazebo="$(arg use_gazebo)"
